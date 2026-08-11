@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import type { NatalChart, UserSettings } from '../types';
 import type { PlanetPosition, AspectData } from '../utils/planetaryPositions';
-import { calculateNatalChart, SIGN_DESCRIPTIONS } from '../utils/astrology';
+import { calculateNatalChart, CITIES_DATABASE, findCity, SIGN_DESCRIPTIONS } from '../utils/astrology';
 import { generateAINatalChartReading } from '../utils/gemini';
 import { generateOfflineNatalReading } from '../utils/astrologyEngine';
 import {
   Sparkles, Calendar, Clock, MapPin, Compass, Flame, Mountain,
-  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp
+  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers
 } from 'lucide-react';
 
 interface AstrologyChartProps {
@@ -40,40 +40,54 @@ const NATURE_ICON: Record<string, string> = {
   neutral: '⚪',
 };
 
-/** SVG Wheel for tropical chart */
-const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number }> = ({ planets, ascendant }) => {
+/** SVG Wheel matching Astro.com standard orientation (ASC on left horizontal axis) */
+const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps: number[] }> = ({ planets, ascendant, cusps }) => {
   const cx = 150, cy = 150;
-  const outerR = 130, innerR = 100, coreR = 60, centerR = 20;
+  const outerR = 135, innerR = 100, coreR = 60, centerR = 22;
+
+  // Transform longitude to SVG angle such that Ascendant longitude aligns with 180° (Left = 9 o'clock)
+  const lngToAngle = (lng: number) => {
+    const rel = (lng - ascendant + 360) % 360;
+    // Ascendant (rel = 0) is at Math.PI (180 deg / left). Increasing longitude goes counter-clockwise.
+    return (180 - rel) * (Math.PI / 180);
+  };
 
   return (
-    <svg viewBox="0 0 300 300" className="w-full h-full">
+    <svg viewBox="0 0 300 300" className="w-full h-full drop-shadow-xl">
       {/* Outer zodiac ring */}
-      <circle cx={cx} cy={cy} r={outerR} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
-      <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+      <circle cx={cx} cy={cy} r={outerR} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
+      <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
       <circle cx={cx} cy={cy} r={coreR} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="2 2" />
-      <circle cx={cx} cy={cy} r={centerR} fill="#0a0a0a" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
+      <circle cx={cx} cy={cy} r={centerR} fill="#0a0a0a" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
 
-      {/* House lines (12 segments) */}
-      {Array.from({ length: 12 }).map((_, i) => {
-        const angle = ((i * 30 - ascendant + 180) * Math.PI) / 180;
+      {/* House Cusp lines */}
+      {cusps.map((cuspLng, i) => {
+        const angle = lngToAngle(cuspLng);
         const x1 = cx + coreR * Math.cos(angle);
         const y1 = cy + coreR * Math.sin(angle);
         const x2 = cx + outerR * Math.cos(angle);
         const y2 = cy + outerR * Math.sin(angle);
+        const isAxis = i === 0 || i === 9; // ASC (House 1) or MC (House 10)
         return (
-          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="rgba(255,255,255,0.06)" strokeWidth={i % 3 === 0 ? 1.5 : 0.8} />
+          <line
+            key={i}
+            x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke={isAxis ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.12)"}
+            strokeWidth={isAxis ? 1.5 : 0.8}
+            strokeDasharray={isAxis ? undefined : "3 3"}
+          />
         );
       })}
 
-      {/* Zodiac sign symbols in ring */}
+      {/* Zodiac sign symbols in outer ring */}
       {['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'].map((sym, i) => {
-        const angle = ((i * 30 + 15 - ascendant + 180) * Math.PI) / 180;
+        const signLng = i * 30 + 15; // center of sign
+        const angle = lngToAngle(signLng);
         const r = (outerR + innerR) / 2;
         return (
           <text key={i} x={cx + r * Math.cos(angle)} y={cy + r * Math.sin(angle)}
             textAnchor="middle" dominantBaseline="central"
-            fill="rgba(255,255,255,0.35)" fontSize="9">
+            fill="rgba(255,255,255,0.5)" fontSize="10" fontWeight="medium">
             {sym}
           </text>
         );
@@ -81,13 +95,13 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number }> = (
 
       {/* Planets */}
       {planets.slice(0, 10).map((planet, i) => {
-        const angle = ((planet.longitude - ascendant + 180) * Math.PI) / 180;
-        const r = innerR - 12 - (i % 3) * 10;
+        const angle = lngToAngle(planet.longitude);
+        const r = innerR - 14 - (i % 3) * 11;
         const px = cx + r * Math.cos(angle);
         const py = cy + r * Math.sin(angle);
         return (
           <g key={planet.planet}>
-            <circle cx={px} cy={py} r="9" fill="#1c1c1e" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
+            <circle cx={px} cy={py} r="9" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
             <text x={px} y={py} textAnchor="middle" dominantBaseline="central"
               fill={planet.isRetrograde ? '#ff9f0a' : '#ffffff'} fontSize="8" fontWeight="bold">
               {planet.symbol}
@@ -96,28 +110,33 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number }> = (
         );
       })}
 
-      {/* ASC line */}
+      {/* Horizontal ASC Axis line (Left = ASC) */}
       <line x1={cx - outerR} y1={cy} x2={cx + outerR} y2={cy}
-        stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeDasharray="4 2" />
-      <text x={cx - outerR + 5} y={cy - 5} fill="white" fontSize="7" fontWeight="bold">ASC</text>
+        stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeDasharray="4 2" />
+      <text x={cx - outerR + 6} y={cy - 5} fill="white" fontSize="8" fontWeight="bold">ASC</text>
+      <text x={cx + outerR - 22} y={cy - 5} fill="rgba(255,255,255,0.5)" fontSize="7">DSC</text>
 
-      {/* Center label */}
-      <text x={cx} y={cy - 5} textAnchor="middle" fill="white" fontSize="6" opacity={0.7}>MAPA</text>
-      <text x={cx} y={cy + 5} textAnchor="middle" fill="white" fontSize="6" opacity={0.7}>NATAL</text>
+      {/* Center Label */}
+      <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="7" fontWeight="bold">ASTRO.COM</text>
+      <text x={cx} y={cy + 6} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="6">PRECISION</text>
     </svg>
   );
 };
 
 export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSaveNatalChart }) => {
   const lang = settings.language;
-  const initialChart = settings.natalChart || calculateNatalChart('1995-05-15', '08:30', 'São Paulo', -23.55, -46.63, -3);
+  const initialChart = settings.natalChart || calculateNatalChart('1995-05-15', '08:30', 'São Paulo', -23.5505, -46.6333, -3, 'Placidus');
 
   const [birthDate, setBirthDate] = useState(initialChart.birthDate || '1995-05-15');
   const [birthTime, setBirthTime] = useState(initialChart.birthTime || '08:30');
   const [birthCity, setBirthCity] = useState(initialChart.birthCity || 'São Paulo');
-  // Auto-detect UTC offset from browser; allow user override
+  const [lat, setLat] = useState<number>(initialChart.lat ?? -23.5505);
+  const [lng, setLng] = useState<number>(initialChart.lng ?? -46.6333);
+
   const browserOffset = -(new Date().getTimezoneOffset() / 60);
-  const [utcOffset, setUtcOffset] = useState(initialChart.utcOffset ?? browserOffset);
+  const [utcOffset, setUtcOffset] = useState<number>(initialChart.utcOffset ?? browserOffset);
+  const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>('Placidus');
+
   const [chart, setChart] = useState<NatalChart>(initialChart);
   const [activeTab, setActiveTab] = useState<Tab>('tropical');
   const [aiReading, setAiReading] = useState<string | null>(null);
@@ -125,12 +144,19 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [engineType, setEngineType] = useState<'gemini' | 'offline'>('offline');
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
 
+  const handleCityChange = (cityName: string) => {
+    setBirthCity(cityName);
+    const match = findCity(cityName);
+    if (match) {
+      setLat(match.lat);
+      setLng(match.lng);
+      setUtcOffset(match.defaultUtcOffset);
+    }
+  };
+
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
-    // Use location from settings (set in SettingsModal)
-    const lat = settings.location.lat;
-    const lng = settings.location.lng;
-    const newChart = calculateNatalChart(birthDate, birthTime, birthCity, lat, lng, utcOffset);
+    const newChart = calculateNatalChart(birthDate, birthTime, birthCity, lat, lng, utcOffset, houseSystem);
     setChart(newChart);
     setAiReading(null);
     onSaveNatalChart(newChart);
@@ -172,56 +198,62 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
 
   const renderPlanetRow = (p: PlanetPosition) => (
     <div key={p.planet}
-      className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-black/30 border border-white/5 hover:border-white/15 transition-all">
+      className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-black/40 border border-white/5 hover:border-white/15 transition-all">
       <span className="text-lg w-7 text-center">{p.symbol}</span>
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-semibold text-white">{p.planet}</div>
-        <div className="text-[11px] text-neutral-400">
-          {p.signSymbol} {p.sign} — {p.degree}°{String(p.minutes ?? 0).padStart(2,'0')}'
+        <div className="text-xs font-semibold text-white flex items-center gap-1.5">
+          <span>{p.planet}</span>
+          {p.isRetrograde && (
+            <span className="px-1.5 py-0.2 text-[9px] font-bold bg-amber-500/20 text-amber-300 rounded border border-amber-500/30">
+              ℞ Retrógrado
+            </span>
+          )}
+        </div>
+        <div className="text-[11px] text-neutral-400 mt-0.5">
+          {p.signSymbol} <strong className="text-neutral-200">{p.signPt}</strong> ({p.sign}) — {p.degree}°{String(p.minutes).padStart(2,'0')}'
         </div>
       </div>
       <div className="text-right">
-        <div className="text-[10px] text-neutral-500">Casa {p.house}</div>
-        {p.isRetrograde && (
-          <span className="text-[9px] text-orange-400 font-bold">℞</span>
-        )}
+        <div className="text-xs font-medium text-neutral-300">Casa {p.house}</div>
       </div>
     </div>
   );
 
   const renderVedicRow = (p: PlanetPosition) => (
     <div key={p.planet}
-      className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-black/30 border border-white/5 hover:border-white/15 transition-all">
+      className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-black/40 border border-white/5 hover:border-white/15 transition-all">
       <span className="text-lg w-7 text-center">{p.symbol}</span>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-white">{p.planet}</div>
-        <div className="text-[11px] text-neutral-400">{p.signSymbol} {p.sign}</div>
+        <div className="text-[11px] text-neutral-400">
+          {p.signSymbol} <strong className="text-neutral-200">{p.vedicSign}</strong> — {p.degree}°{String(p.minutes).padStart(2,'0')}'
+        </div>
         {p.nakshatra && (
-          <div className="text-[10px] text-neutral-500">
-            Nakshatra: {p.nakshatra} ({p.nakshatraRuler}) Pada {p.nakshatraPada}
+          <div className="text-[10px] text-neutral-500 mt-0.5">
+            Nakshatra: <span className="text-neutral-300">{p.nakshatra}</span> ({p.nakshatraRuler}) Pada {p.nakshatraPada}
           </div>
         )}
       </div>
       <div className="text-right">
-        <div className="text-[10px] text-neutral-500">Casa {p.house}</div>
+        <div className="text-xs font-medium text-neutral-300">Casa {p.house}</div>
       </div>
     </div>
   );
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header */}
+    <div className="space-y-6 animate-fadeIn max-w-5xl mx-auto">
+      {/* Header Banner */}
       <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300 text-xs font-medium mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-white" /> Mapa Astral Personalizado
+              <Sparkles className="w-3.5 h-3.5 text-white" /> Precisão Padrão Astro.com / Suíço
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Mapa Astral
+              Mapa Astral Completo
             </h1>
             <p className="text-sm text-neutral-400 max-w-xl mt-1">
-              Tropical (Ocidental) & Védico (Jyotish) — 10 planetas, casas, aspectos e Nakshatras
+              Cálculo exato de Sol, Lua, 8 planetas, Ascendente, Casas ({houseSystem}) e Aspectos.
             </p>
           </div>
 
@@ -247,29 +279,29 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           </div>
         </div>
 
-        {/* Big 3 badges */}
+        {/* Big 3 Badges */}
         <div className="flex flex-wrap items-center gap-2 mt-5">
           {[
-            { label: '☉ Sol', value: `${chart.sunSymbol} ${chart.sunSign}` },
-            { label: '☽ Lua', value: `${chart.moonSymbol} ${chart.moonSign}` },
-            { label: '↑ Asc', value: `${chart.risingSymbol} ${chart.risingSign}` },
-            ...(fullChart ? [{ label: 'MC', value: `${fullChart.midheavenSymbol} ${fullChart.midheavenSign}` }] : []),
+            { label: '☉ Sol', value: `${chart.sunSymbol} ${fullChart?.tropical[0]?.signPt || chart.sunSign}` },
+            { label: '☽ Lua', value: `${chart.moonSymbol} ${fullChart?.tropical[1]?.signPt || chart.moonSign}` },
+            { label: '↑ Ascendente', value: `${chart.risingSymbol} ${fullChart?.ascendantSignPt || chart.risingSign}` },
+            ...(fullChart ? [{ label: 'MC (Meio do Céu)', value: `${fullChart.midheavenSymbol} ${fullChart.midheavenSignPt}` }] : []),
           ].map(b => (
-            <div key={b.label} className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-center">
-              <span className="text-[10px] text-neutral-400 mr-1">{b.label}:</span>
+            <div key={b.label} className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-center">
+              <span className="text-[10px] text-neutral-400 mr-1.5">{b.label}:</span>
               <span className="text-xs font-semibold text-white">{b.value}</span>
             </div>
           ))}
           {fullChart && (
-            <div className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-center">
-              <span className="text-[10px] text-neutral-400 mr-1">Ayanamsha:</span>
+            <div className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-center">
+              <span className="text-[10px] text-neutral-400 mr-1.5">Ayanamsha:</span>
               <span className="text-xs font-semibold text-white">{fullChart.ayanamsha}°</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* AI Reading */}
+      {/* AI Reading Synthesis */}
       {aiReading && (
         <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10 space-y-3 animate-fadeIn">
           <div className="flex items-center justify-between text-white font-bold text-sm">
@@ -286,19 +318,19 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
         </div>
       )}
 
-      {/* Main layout */}
+      {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Form + Elements */}
-        <div className="lg:col-span-4 space-y-5">
-          <div className="bg-[#1c1c1e] rounded-3xl p-6 border border-white/10 space-y-5">
+        {/* Left Form + Controls */}
+        <div className="lg:col-span-5 space-y-5">
+          <div className="bg-[#1c1c1e] rounded-3xl p-6 border border-white/10 space-y-4">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Compass className="w-4 h-4 text-white" /> Dados de Nascimento
+              <Compass className="w-4 h-4 text-white" /> Dados de Nascimento Exactos
             </h2>
 
-            <form onSubmit={handleCalculate} className="space-y-3 text-xs">
+            <form onSubmit={handleCalculate} className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-neutral-400 mb-1 font-medium flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> Data
+                  <Calendar className="w-3.5 h-3.5" /> Data de Nascimento
                 </label>
                 <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" required />
@@ -306,43 +338,80 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
 
               <div>
                 <label className="block text-neutral-400 mb-1 font-medium flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" /> Hora (local)
+                  <Clock className="w-3.5 h-3.5" /> Hora Local Exata (HH:MM)
                 </label>
                 <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" required />
               </div>
 
               <div>
-                <label className="block text-neutral-400 mb-1 font-medium flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5" /> Cidade
+                <label className="block text-neutral-400 mb-1 font-medium flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Cidade de Nascimento</span>
+                  <span className="text-[10px] text-neutral-500">Auto-coordenadas</span>
                 </label>
-                <input type="text" value={birthCity} onChange={(e) => setBirthCity(e.target.value)}
-                  placeholder="Ex: São Paulo..." required
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" />
+                <input
+                  type="text"
+                  value={birthCity}
+                  onChange={(e) => handleCityChange(e.target.value)}
+                  placeholder="Ex: São Paulo, Lisboa, Rio..."
+                  list="city-options"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white"
+                  required
+                />
+                <datalist id="city-options">
+                  {CITIES_DATABASE.map(c => (
+                    <option key={c.name} value={c.name}>{c.name} ({c.country})</option>
+                  ))}
+                </datalist>
               </div>
 
-              <div>
-                <label className="block text-neutral-400 mb-1 font-medium flex items-center justify-between">
-                <span>Fuso UTC (ex: -3 = Brasília)</span>
-                <button type="button" onClick={() => setUtcOffset(browserOffset)}
-                  className="text-[10px] text-neutral-500 hover:text-white underline">
-                  Auto-detectar
-                </button>
-              </label>
-              <input type="number" value={utcOffset} step="0.5" min="-12" max="14"
-                onChange={(e) => setUtcOffset(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" />
-              <p className="text-[10px] text-neutral-600 mt-0.5">Detectado pelo browser: UTC{browserOffset >= 0 ? '+' : ''}{browserOffset}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-neutral-400 mb-1 font-medium text-[11px]">Fuso UTC</label>
+                  <input
+                    type="number"
+                    value={utcOffset}
+                    step="0.5"
+                    min="-12"
+                    max="14"
+                    onChange={(e) => setUtcOffset(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-neutral-400 mb-1 font-medium text-[11px] flex items-center gap-1">
+                    <Layers className="w-3 h-3" /> Sistema Casas
+                  </label>
+                  <select
+                    value={houseSystem}
+                    onChange={(e) => setHouseSystem(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none text-xs"
+                  >
+                    <option value="Placidus">Placidus (Astro.com)</option>
+                    <option value="Equal">Casas Iguais</option>
+                    <option value="WholeSign">Whole Sign</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-[10px] text-neutral-400 space-y-1">
+                <div className="flex justify-between">
+                  <span>Latitude:</span> <strong className="text-neutral-200">{lat.toFixed(4)}°</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>Longitude:</span> <strong className="text-neutral-200">{lng.toFixed(4)}°</strong>
+                </div>
               </div>
 
               <button type="submit"
-                className="w-full py-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all mt-2">
-                Calcular Mapa
+                className="w-full py-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all mt-2 shadow-sm">
+                Recalcular Mapa Astral
               </button>
             </form>
           </div>
 
-          {/* Elements */}
+          {/* Elements Distribution */}
           <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-4">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Distribuição dos Elementos
@@ -366,54 +435,23 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
               ))}
             </div>
           </div>
-
-          {/* Vedic quick info */}
-          {fullChart && (
-            <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-3">
-              <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-2">
-                🕉️ Védico Rápido
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Lagna (Asc Védico)</span>
-                  <span className="text-white font-semibold">{fullChart.vedicAscendant}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Nakshatra Lunar</span>
-                  <span className="text-white font-semibold">{fullChart.moonNakshatra}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Regente do Naksh.</span>
-                  <span className="text-white font-semibold">{fullChart.moonNakshatraRuler}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Pada da Lua</span>
-                  <span className="text-white font-semibold">{fullChart.moonNakshatraPada}º Pada</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-neutral-400">Nakshatra Solar</span>
-                  <span className="text-white font-semibold">{fullChart.sunNakshatra}</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right: Chart + Tabs */}
-        <div className="lg:col-span-8 space-y-5">
-          {/* Wheel */}
+        {/* Right Wheel + Tabs */}
+        <div className="lg:col-span-7 space-y-5">
+          {/* Wheel Visual */}
           {fullChart && (
             <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10">
               <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 text-center">
-                Roda do Mapa Natal (Tropical)
+                Roda Zodiacal (Alinhamento Astro.com — ASC a Oeste/Esquerda)
               </h2>
               <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto">
-                <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} />
+                <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} cusps={fullChart.houseCusps} />
               </div>
             </div>
           )}
 
-          {/* Tab selector */}
+          {/* Tab Selector */}
           <div className="flex items-center gap-2 bg-[#1c1c1e] rounded-2xl p-2 border border-white/10">
             {tabs.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -430,41 +468,33 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           {/* Tropical Tab */}
           {activeTab === 'tropical' && fullChart && (
             <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Star className="w-4 h-4 text-white" />
-                <h3 className="text-sm font-bold text-white">Planetas — Zodíaco Tropical</h3>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-white" />
+                  <h3 className="text-sm font-bold text-white">Posições Planetárias (Tropical)</h3>
+                </div>
+                <span className="text-[11px] text-neutral-400">Sistema: {houseSystem}</span>
               </div>
               <div className="space-y-1.5">
                 {fullChart.tropical.map(renderPlanetRow)}
               </div>
-              <p className="text-[10px] text-neutral-500 mt-2">
-                ℞ = Retrógrado · Posições em Tempo Sidéreo Local para {chart.birthCity}
-              </p>
             </div>
           )}
 
           {/* Vedic Tab */}
           {activeTab === 'vedic' && fullChart && (
             <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">🕉️</span>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Jyotish — Zodíaco Védico (Sidereo)</h3>
-                  <p className="text-[10px] text-neutral-400">Ayanamsha Lahiri: {fullChart.ayanamsha}°</p>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🕉️</span>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Jyotish — Zodíaco Védico (Sidéreo)</h3>
+                    <p className="text-[10px] text-neutral-400">Ayanamsha Lahiri: {fullChart.ayanamsha}°</p>
+                  </div>
                 </div>
               </div>
               <div className="space-y-1.5">
                 {fullChart.vedic.map(renderVedicRow)}
-              </div>
-              <div className="mt-4 p-4 rounded-2xl bg-black/30 border border-white/5 space-y-2">
-                <div className="text-xs font-bold text-neutral-300 mb-2">ℹ️ O que é o Zodíaco Védico?</div>
-                <p className="text-[11px] text-neutral-400 leading-relaxed">
-                  O Jyotish usa o Zodíaco Sidéreo, que leva em conta a precessão equinocial. 
-                  O Ayanamsha Lahiri subtrai aproximadamente <strong className="text-white">{Math.round(fullChart.ayanamsha)}°</strong> das posições tropicais, 
-                  deslocando os planetas ~1 signo para trás. 
-                  Lagna = Ascendente Védico (<strong className="text-white">{fullChart.vedicLagna}</strong>).
-                  Os Nakshatras dividem o céu em 27 mansões lunares de 13°20' cada.
-                </p>
               </div>
             </div>
           )}
@@ -472,32 +502,15 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           {/* Aspects Tab */}
           {activeTab === 'aspects' && (
             <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">⭐</span>
-                <h3 className="text-sm font-bold text-white">Aspectos Astrológicos</h3>
-                <span className="ml-auto text-xs text-neutral-400">{aspects.length} encontrados</span>
-              </div>
-
-              {/* Legend */}
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {[
-                  { name: 'Conjunção ☌', cls: 'text-white' },
-                  { name: 'Trígono △', cls: 'text-green-400' },
-                  { name: 'Sextil ⚹', cls: 'text-blue-400' },
-                  { name: 'Quadratura □', cls: 'text-orange-400' },
-                  { name: 'Oposição ☍', cls: 'text-red-400' },
-                  { name: 'Quincúncio Qx', cls: 'text-yellow-400' },
-                ].map(l => (
-                  <span key={l.name} className={`text-[10px] font-medium ${l.cls}`}>{l.name}</span>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⭐</span>
+                  <h3 className="text-sm font-bold text-white">Aspectos Astrológicos</h3>
+                </div>
+                <span className="text-xs text-neutral-400">{aspects.length} aspectos</span>
               </div>
 
               <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
-                {aspects.length === 0 && (
-                  <p className="text-neutral-400 text-xs text-center py-8">
-                    Calcule seu mapa para ver os aspectos
-                  </p>
-                )}
                 {aspects.map((asp, i) => (
                   <div key={i}
                     className={`rounded-xl border p-3 cursor-pointer transition-all ${ASPECT_BG[asp.aspect] || 'bg-white/5 border-white/10'}`}
@@ -535,25 +548,29 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           )}
 
           {/* Houses Tab */}
-          {activeTab === 'houses' && (
+          {activeTab === 'houses' && fullChart && (
             <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Grid3x3 className="w-4 h-4 text-white" />
-                <h3 className="text-sm font-bold text-white">12 Casas Astrológicas (Equal House)</h3>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Grid3x3 className="w-4 h-4 text-white" />
+                  <h3 className="text-sm font-bold text-white">Cúspides das 12 Casas ({houseSystem})</h3>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {HOUSE_MEANINGS.map(({ house, meaning, area }, i) => {
+                  const cuspLng = fullChart.houseCusps[i];
                   const houseData = chart.houses[i];
                   return (
                     <div key={house}
-                      className="flex items-start gap-3 p-3 rounded-xl bg-black/30 border border-white/5 hover:border-white/15 transition-all">
+                      className="flex items-start gap-3 p-3 rounded-xl bg-black/40 border border-white/5 hover:border-white/15 transition-all">
                       <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
                         <span className="text-xs font-bold text-white">{house}</span>
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-white flex items-center gap-1">
+                        <div className="text-xs font-semibold text-white flex items-center gap-1.5">
                           <span>{houseData?.symbol}</span>
                           <span>{houseData?.sign}</span>
+                          <span className="text-[10px] text-neutral-400">({Math.floor(cuspLng % 30)}°)</span>
                         </div>
                         <div className="text-[10px] text-neutral-400 font-medium">{area}</div>
                         <div className="text-[10px] text-neutral-500 leading-tight mt-0.5">{meaning}</div>
@@ -565,12 +582,12 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
             </div>
           )}
 
-          {/* Big 3 descriptions */}
+          {/* Big 3 Descriptions */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { label: 'Sol ☉', sign: chart.sunSign, symbol: chart.sunSymbol, desc: sunDesc },
-              { label: 'Lua ☽', sign: chart.moonSign, symbol: chart.moonSymbol, desc: moonDesc },
-              { label: 'Ascendente ↑', sign: chart.risingSign, symbol: chart.risingSymbol, desc: risingDesc },
+              { label: 'Sol ☉', sign: fullChart?.tropical[0]?.signPt || chart.sunSign, symbol: chart.sunSymbol, desc: sunDesc },
+              { label: 'Lua ☽', sign: fullChart?.tropical[1]?.signPt || chart.moonSign, symbol: chart.moonSymbol, desc: moonDesc },
+              { label: 'Ascendente ↑', sign: fullChart?.ascendantSignPt || chart.risingSign, symbol: chart.risingSymbol, desc: risingDesc },
             ].map(({ label, sign, symbol, desc }) => (
               <div key={label} className="bg-[#1c1c1e] rounded-2xl p-4 border border-white/10 space-y-1">
                 <div className="text-[11px] text-neutral-400 font-semibold uppercase">{label}</div>
@@ -588,16 +605,16 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
 };
 
 const HOUSE_MEANINGS = [
-  { house: 'I', area: 'Identidade', meaning: 'Aparência, personalidade e início de tudo.' },
+  { house: 'I (ASC)', area: 'Identidade', meaning: 'Aparência, personalidade e início de tudo.' },
   { house: 'II', area: 'Recursos', meaning: 'Finanças, valores pessoais e posses.' },
   { house: 'III', area: 'Comunicação', meaning: 'Mente, fala, irmãos e viagens curtas.' },
-  { house: 'IV', area: 'Lar & Família', meaning: 'Raízes, infância, lar e vida privada.' },
+  { house: 'IV (IC)', area: 'Lar & Família', meaning: 'Raízes, infância, lar e vida privada.' },
   { house: 'V', area: 'Criatividade', meaning: 'Amor, prazer, filhos e expressão artística.' },
   { house: 'VI', area: 'Saúde & Trabalho', meaning: 'Rotinas, saúde, serviço diário.' },
-  { house: 'VII', area: 'Parcerias', meaning: 'Casamento, sociedades e relacionamentos.' },
+  { house: 'VII (DSC)', area: 'Parcerias', meaning: 'Casamento, sociedades e relacionamentos.' },
   { house: 'VIII', area: 'Transformação', meaning: 'Morte, heranças, sexualidade e ocultismo.' },
   { house: 'IX', area: 'Expansão', meaning: 'Filosofia, viagens longas, religião e espiritualidade.' },
-  { house: 'X', area: 'Carreira (MC)', meaning: 'Status, reputação e vida pública.' },
+  { house: 'X (MC)', area: 'Carreira', meaning: 'Status, reputação e vida pública.' },
   { house: 'XI', area: 'Comunidade', meaning: 'Amizades, grupos, sonhos e objetivos futuros.' },
   { house: 'XII', area: 'Espiritualidade', meaning: 'Inconsciente, karma, recolhimento e transcendência.' },
 ];

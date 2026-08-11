@@ -2,6 +2,47 @@ import type { NatalChart } from '../types';
 import { ZODIAC_SIGNS } from './astronomy';
 import { calcFullNatalChart } from './planetaryPositions';
 
+/** Major Cities Database with exact Latitude, Longitude and default UTC offset */
+export interface CityCoordinates {
+  name: string;
+  country: string;
+  lat: number;
+  lng: number;
+  defaultUtcOffset: number;
+}
+
+export const CITIES_DATABASE: CityCoordinates[] = [
+  { name: 'São Paulo', country: 'Brasil', lat: -23.5505, lng: -46.6333, defaultUtcOffset: -3 },
+  { name: 'Rio de Janeiro', country: 'Brasil', lat: -22.9068, lng: -43.1729, defaultUtcOffset: -3 },
+  { name: 'Brasília', country: 'Brasil', lat: -15.7975, lng: -47.8919, defaultUtcOffset: -3 },
+  { name: 'Salvador', country: 'Brasil', lat: -12.9777, lng: -38.5016, defaultUtcOffset: -3 },
+  { name: 'Fortaleza', country: 'Brasil', lat: -3.7319, lng: -38.5267, defaultUtcOffset: -3 },
+  { name: 'Belo Horizonte', country: 'Brasil', lat: -19.9167, lng: -43.9345, defaultUtcOffset: -3 },
+  { name: 'Manaus', country: 'Brasil', lat: -3.1190, lng: -60.0217, defaultUtcOffset: -4 },
+  { name: 'Curitiba', country: 'Brasil', lat: -25.4284, lng: -49.2733, defaultUtcOffset: -3 },
+  { name: 'Recife', country: 'Brasil', lat: -8.0476, lng: -34.8770, defaultUtcOffset: -3 },
+  { name: 'Porto Alegre', country: 'Brasil', lat: -30.0346, lng: -51.2177, defaultUtcOffset: -3 },
+  { name: 'Belém', country: 'Brasil', lat: -1.4558, lng: -48.4902, defaultUtcOffset: -3 },
+  { name: 'Goiânia', country: 'Brasil', lat: -16.6869, lng: -49.2648, defaultUtcOffset: -3 },
+  { name: 'Campinas', country: 'Brasil', lat: -22.9099, lng: -47.0626, defaultUtcOffset: -3 },
+  { name: 'Florianópolis', country: 'Brasil', lat: -27.5954, lng: -48.5480, defaultUtcOffset: -3 },
+  { name: 'Vitória', country: 'Brasil', lat: -20.3155, lng: -40.3128, defaultUtcOffset: -3 },
+  { name: 'Lisboa', country: 'Portugal', lat: 38.7223, lng: -9.1393, defaultUtcOffset: 0 },
+  { name: 'Porto', country: 'Portugal', lat: 41.1579, lng: -8.6291, defaultUtcOffset: 0 },
+  { name: 'Madrid', country: 'Espanha', lat: 40.4168, lng: -3.7038, defaultUtcOffset: 1 },
+  { name: 'Nova York', country: 'EUA', lat: 40.7128, lng: -74.0060, defaultUtcOffset: -5 },
+  { name: 'Londres', country: 'Reino Unido', lat: 51.5074, lng: -0.1278, defaultUtcOffset: 0 },
+  { name: 'Paris', country: 'França', lat: 48.8566, lng: 2.3522, defaultUtcOffset: 1 },
+  { name: 'Tóquio', country: 'Japão', lat: 35.6762, lng: 139.6503, defaultUtcOffset: 9 },
+];
+
+export function findCity(cityName: string): CityCoordinates | undefined {
+  const norm = cityName.trim().toLowerCase();
+  return CITIES_DATABASE.find(
+    (c) => c.name.toLowerCase() === norm || c.name.toLowerCase().includes(norm)
+  );
+}
+
 export function getSunZodiacSign(month: number, day: number) {
   if ((month === 3 && day >= 21) || (month === 4 && day <= 19)) return ZODIAC_SIGNS[0];
   if ((month === 4 && day >= 20) || (month === 5 && day <= 20)) return ZODIAC_SIGNS[1];
@@ -21,29 +62,40 @@ export function calculateNatalChart(
   birthDateStr: string,
   birthTimeStr: string,
   birthCity: string,
-  lat: number = -23.55,
-  lng: number = -46.63,
-  utcOffset: number = -3
+  lat?: number,
+  lng?: number,
+  utcOffset?: number,
+  houseSystem: 'Placidus' | 'Equal' | 'WholeSign' = 'Placidus'
 ): NatalChart {
   const [year, month, day] = birthDateStr.split('-').map(Number);
   const [hours, minutes] = (birthTimeStr || '12:00').split(':').map(Number);
 
-  const fullChart = calcFullNatalChart(year, month, day, hours, minutes, lat, lng, utcOffset);
+  // Look up city if coordinates not explicitly provided
+  const cityMatch = findCity(birthCity);
+  const finalLat = lat ?? cityMatch?.lat ?? -23.5505;
+  const finalLng = lng ?? cityMatch?.lng ?? -46.6333;
+  const finalUtcOffset = utcOffset ?? cityMatch?.defaultUtcOffset ?? -3;
 
-  const sunPlanet  = fullChart.tropical.find(p => p.planet === 'Sol')!;
-  const moonPlanet = fullChart.tropical.find(p => p.planet === 'Lua')!;
+  const fullChart = calcFullNatalChart(
+    year, month, day,
+    hours, minutes,
+    finalLat, finalLng, finalUtcOffset,
+    houseSystem
+  );
 
-  const sunZodiac    = ZODIAC_SIGNS.find(z => z.name === sunPlanet.sign)  || ZODIAC_SIGNS[0];
-  const moonZodiac   = ZODIAC_SIGNS.find(z => z.name === moonPlanet.sign) || ZODIAC_SIGNS[0];
-  const risingZodiac = ZODIAC_SIGNS.find(z => z.name === fullChart.ascendantSign) || ZODIAC_SIGNS[0];
+  const sunPlanet  = fullChart.tropical.find((p) => p.planet === 'Sol')!;
+  const moonPlanet = fullChart.tropical.find((p) => p.planet === 'Lua')!;
 
-  const ascSignIdx = ZODIAC_SIGNS.findIndex(z => z.name === fullChart.ascendantSign);
+  const sunZodiac    = ZODIAC_SIGNS.find((z) => z.name === sunPlanet.sign)  || ZODIAC_SIGNS[0];
+  const moonZodiac   = ZODIAC_SIGNS.find((z) => z.name === moonPlanet.sign) || ZODIAC_SIGNS[0];
+  const risingZodiac = ZODIAC_SIGNS.find((z) => z.name === fullChart.ascendantSign) || ZODIAC_SIGNS[0];
+
+  const ascSignIdx = ZODIAC_SIGNS.findIndex((z) => z.name === fullChart.ascendantSign);
   const houses = Array.from({ length: 12 }, (_, i) => {
     const s = ZODIAC_SIGNS[(ascSignIdx + i) % 12];
     return { house: i + 1, sign: s.name, symbol: s.symbol };
   });
 
-  // Weighted element distribution (Sun x3, Moon x3, Asc x2, others x1)
   const ELEMENT_MAP: Record<string, string> = {
     Aries: 'Fire', Leo: 'Fire', Sagittarius: 'Fire',
     Taurus: 'Earth', Virgo: 'Earth', Capricorn: 'Earth',
@@ -55,7 +107,7 @@ export function calculateNatalChart(
     { sign: sunPlanet.sign, w: 3 },
     { sign: moonPlanet.sign, w: 3 },
     { sign: fullChart.ascendantSign, w: 2 },
-    ...fullChart.tropical.filter(p => !['Sol','Lua'].includes(p.planet)).map(p => ({ sign: p.sign, w: 1 })),
+    ...fullChart.tropical.filter((p) => !['Sol','Lua'].includes(p.planet)).map((p) => ({ sign: p.sign, w: 1 })),
   ];
   let totalW = 0;
   weighted.forEach(({ sign, w }) => {
@@ -74,12 +126,20 @@ export function calculateNatalChart(
   if (nextReturn < new Date()) nextReturn.setFullYear(new Date().getFullYear() + 1);
 
   return {
-    birthDate: birthDateStr, birthTime: birthTimeStr, birthCity,
-    lat, lng, utcOffset,
-    sunSign: sunZodiac.name, sunSymbol: sunZodiac.symbol,
-    moonSign: moonZodiac.name, moonSymbol: moonZodiac.symbol,
-    risingSign: risingZodiac.name, risingSymbol: risingZodiac.symbol,
-    elements, houses,
+    birthDate: birthDateStr,
+    birthTime: birthTimeStr,
+    birthCity,
+    lat: finalLat,
+    lng: finalLng,
+    utcOffset: finalUtcOffset,
+    sunSign: sunZodiac.name,
+    sunSymbol: sunZodiac.symbol,
+    moonSign: moonZodiac.name,
+    moonSymbol: moonZodiac.symbol,
+    risingSign: risingZodiac.name,
+    risingSymbol: risingZodiac.symbol,
+    elements,
+    houses,
     lunarReturnDate: nextReturn.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric', year: 'numeric' }),
     fullChart,
   };
@@ -93,7 +153,7 @@ export const SIGN_DESCRIPTIONS: Record<string, { pt: string; en: string }> = {
   Leo:         { pt: 'Radiante, generoso e magnético. Carrega o brilho aquecido do Sol central.', en: 'Radiant, generous, and magnetic. Carries the warm glow of the central Sun.' },
   Virgo:       { pt: 'Analítico, dedicado ao aperfeiçoamento, saúde, rituais diários e discernimento.', en: 'Analytical, dedicated to self-improvement, health, daily rituals, and clarity.' },
   Libra:       { pt: 'Harmonioso, diplomático e amante da estética, das artes e dos relacionamentos.', en: 'Harmonious, diplomatic, lover of aesthetics, fine arts, and balanced relationships.' },
-  Scorpio:     { pt: 'Profundo, transformador e místico. Navega pelas correntes ocultas da regeneração.', en: 'Deep, transformative, and mystical. Navigates the hidden currents of rebirth.' },
+  Scorpio:     { pt: 'Profundo, transformador e místico. Navega pelas correntes occultas da regeneração.', en: 'Deep, transformative, and mystical. Navigates the hidden currents of rebirth.' },
   Sagittarius: { pt: 'Expansivo, filosófico e aventureiro. Busca sempre a verdade nos horizontes distantes.', en: 'Expansive, philosophical, and adventurous. Always seeking truth on distant horizons.' },
   Capricorn:   { pt: 'Determinado, disciplinado e mestre na construção de realizações duradouras.', en: 'Determined, disciplined, and a master at constructing long-lasting achievements.' },
   Aquarius:    { pt: 'Visionário, original e humanitário. Traz as brisas inovadoras do futuro.', en: 'Visionary, original, and humanitarian. Brings innovative breezes from the future.' },

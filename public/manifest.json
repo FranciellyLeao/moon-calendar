@@ -49,15 +49,15 @@
   ],
   "screenshots": [
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Moon Calendar Dashboard"
+      "label": "Moon Calendar Desktop View"
     },
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
+      "src": "/screenshot-mobile.png",
+      "sizes": "750x1334",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Moon Calendar Mobile View"

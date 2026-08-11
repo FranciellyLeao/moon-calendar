@@ -68,22 +68,55 @@
       "name": "Horóscopo Diário",
       "short_name": "Horóscopo",
       "description": "Veja o seu horóscopo e previsões de energia",
-      "url": "/#horoscope",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icon-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        },
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Mapa Astral",
       "short_name": "Mapa Astral",
       "description": "Consulte o seu mapa astral personalizado",
-      "url": "/#astrology",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icon-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        },
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Sinastria & Amor",
       "short_name": "Sinastria",
       "description": "Calcule a compatibilidade entre dois mapas",
-      "url": "/#synastry",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icon-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        },
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "widgets": [

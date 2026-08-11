@@ -13,6 +13,7 @@
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
   "orientation": "portrait",
+  "iarc_rating_id": "e84b0790-2e40-4fe7-a36c-9a405643d23d",
   "prefer_related_applications": false,
   "related_applications": [
     {

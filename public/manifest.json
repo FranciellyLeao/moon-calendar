@@ -118,25 +118,5 @@
         }
       ]
     }
-  ],
-  "widgets": [
-    {
-      "name": "Fase Lunar",
-      "short_name": "Moon Widget",
-      "description": "Widget de fase lunar atual e signo",
-      "tag": "lunar-phase",
-      "template": "lunar-widget-template",
-      "ms_ac_template": "widgets/lunar-widget.json",
-      "data": "widgets/lunar-data.json",
-      "type": "image/png",
-      "screenshots": [
-        {
-          "src": "/icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png",
-          "label": "Moon Widget Preview"
-        }
-      ]
-    }
   ]
 }

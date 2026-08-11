@@ -36,6 +36,7 @@ export interface NatalChart {
   birthCity: string;
   lat?: number;
   lng?: number;
+  utcOffset?: number;
   sunSign: string;
   sunSymbol: string;
   moonSign: string;
@@ -50,6 +51,8 @@ export interface NatalChart {
   };
   houses: { house: number; sign: string; symbol: string }[];
   lunarReturnDate: string;
+  // Extended full chart
+  fullChart?: import('../utils/planetaryPositions').FullNatalChart;
 }
 
 export interface ZodiacReading {

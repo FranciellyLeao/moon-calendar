@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { AstronomyData, UserSettings } from '../types';
 import { t } from '../utils/i18n';
 import {
@@ -7,15 +7,16 @@ import {
   Sparkles,
   Sun,
   BookOpen,
+  Settings,
+  MapPin,
+  ChevronDown,
+  Compass,
+  LayoutGrid,
+  HeartHandshake,
   Target,
   Flame,
   HeartPulse,
-  HeartHandshake,
-  LayoutGrid,
-  Compass,
   BarChart3,
-  Settings,
-  MapPin,
   Database,
 } from 'lucide-react';
 
@@ -37,91 +38,172 @@ export const Navbar: React.FC<NavbarProps> = ({
   openBackupModal,
 }) => {
   const lang = settings.language;
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const navItems = [
+  // Primary top-level navigation tabs
+  const mainNavItems = [
     { id: 'dashboard', label: t('tabDashboard', lang), icon: Moon },
     { id: 'calendar', label: t('tabCalendar', lang), icon: Calendar },
-    { id: 'transits', label: 'Trânsitos', icon: Compass },
-    { id: 'widgets', label: 'Widgets', icon: LayoutGrid },
     { id: 'astrology', label: t('tabAstrology', lang), icon: Sparkles },
-    { id: 'synastry', label: 'Sinastria', icon: HeartHandshake },
     { id: 'horoscope', label: t('tabHoroscope', lang), icon: Sun },
     { id: 'journal', label: t('tabJournal', lang), icon: BookOpen },
-    { id: 'intentions', label: t('tabIntentions', lang), icon: Target },
-    { id: 'rituals', label: t('tabRituals', lang), icon: Flame },
-    { id: 'cycle', label: t('tabCycle', lang), icon: HeartPulse },
-    { id: 'analytics', label: t('tabAnalytics', lang), icon: BarChart3 },
   ];
 
+  // Secondary tools in the "Mais" dropdown
+  const secondaryNavItems = [
+    { id: 'transits', label: 'Trânsitos Planetários', icon: Compass, category: 'Astrologia' },
+    { id: 'synastry', label: 'Sinastria de Casal', icon: HeartHandshake, category: 'Astrologia' },
+    { id: 'intentions', label: t('tabIntentions', lang), icon: Target, category: 'Práticas' },
+    { id: 'rituals', label: t('tabRituals', lang), icon: Flame, category: 'Práticas' },
+    { id: 'cycle', label: t('tabCycle', lang), icon: HeartPulse, category: 'Práticas' },
+    { id: 'analytics', label: t('tabAnalytics', lang), icon: BarChart3, category: 'Ferramentas' },
+    { id: 'widgets', label: 'Simulador de Widgets', icon: LayoutGrid, category: 'Ferramentas' },
+  ];
+
+  const isSecondaryActive = secondaryNavItems.some((item) => item.id === activeTab);
+  const activeSecondaryItem = secondaryNavItems.find((item) => item.id === activeTab);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsMoreOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-40 w-full bg-black/70 border-b border-white/10 backdrop-blur-2xl">
+    <header className="sticky top-0 z-40 w-full bg-black/80 border-b border-white/10 backdrop-blur-2xl">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-12">
+        <div className="flex items-center justify-between h-14">
           {/* Brand */}
           <div
-            className="flex items-center gap-2 cursor-pointer group"
+            className="flex items-center gap-2.5 cursor-pointer group"
             onClick={() => setActiveTab('dashboard')}
           >
-            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white">
-              <Moon className="w-3.5 h-3.5 fill-white/80" />
+            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-white/20 transition-all">
+              <Moon className="w-4 h-4 fill-white/90" />
             </div>
-            <span className="text-sm font-semibold tracking-tight text-white">
+            <span className="text-sm font-bold tracking-tight text-white">
               Moon Calendar
             </span>
           </div>
 
-          {/* Lunar Status Badge */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] text-neutral-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-white" />
-            <span className="font-medium text-white">
-              {t(astroData.phaseName, lang)} ({astroData.illumination}%)
-            </span>
-            <span className="text-neutral-600">•</span>
-            <span>{astroData.zodiacSymbol} {astroData.zodiacSign}</span>
-          </div>
+          {/* Primary Clean Navigation */}
+          <nav className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/10">
+            {mainNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-white text-black font-semibold shadow-sm'
+                      : 'text-neutral-300 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                  {item.label}
+                </button>
+              );
+            })}
 
-          {/* Settings Actions */}
+            {/* Dropdown "Mais Ferramentas" */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsMoreOpen(!isMoreOpen)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  isSecondaryActive
+                    ? 'bg-white text-black font-semibold shadow-sm'
+                    : 'text-neutral-300 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <span>{activeSecondaryItem ? activeSecondaryItem.label : 'Mais'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isMoreOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-[#1c1c1e] border border-white/15 rounded-2xl shadow-2xl p-2 z-50 animate-fadeIn backdrop-blur-3xl">
+                  <div className="text-[10px] font-bold text-neutral-400 px-3 py-1 uppercase tracking-wider">
+                    Outros Módulos
+                  </div>
+                  <div className="space-y-0.5">
+                    {secondaryNavItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveTab(item.id);
+                            setIsMoreOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                            isActive
+                              ? 'bg-white text-black font-semibold'
+                              : 'text-neutral-300 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </nav>
+
+          {/* Lunar Status Badge & Quick Controls */}
           <div className="flex items-center gap-2 text-xs">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-neutral-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span className="font-semibold text-white">
+                {astroData.illumination}%
+              </span>
+              <span className="text-neutral-500">•</span>
+              <span>{astroData.zodiacSymbol} {astroData.zodiacSign}</span>
+            </div>
+
             <button
               onClick={openBackupModal}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-              title="Backup & Exportar"
+              className="p-2 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 border border-white/10 transition-all"
+              title="Backup & Exportação"
             >
-              <Database className="w-3 h-3 text-neutral-400" />
-              <span className="hidden sm:inline text-[11px]">Backup</span>
+              <Database className="w-4 h-4" />
             </button>
 
             <button
               onClick={openSettingsModal}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-neutral-200 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-xs font-medium"
             >
-              <MapPin className="w-3 h-3 text-neutral-400" />
-              <span className="hidden sm:inline max-w-[90px] truncate text-[11px]">
+              <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+              <span className="max-w-[80px] truncate text-[11px]">
                 {settings.location.name}
               </span>
-            </button>
-
-            <button
-              onClick={openSettingsModal}
-              className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 transition-colors"
-            >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="w-3.5 h-3.5 text-neutral-400 ml-0.5" />
             </button>
           </div>
         </div>
 
-        {/* Segmented Navigation Bar */}
-        <nav className="flex items-center gap-1 overflow-x-auto py-1.5 no-scrollbar text-xs border-t border-white/5">
-          {navItems.map((item) => {
+        {/* Mobile Navigation Scrollbar (Super Clean) */}
+        <nav className="flex md:hidden items-center gap-1 overflow-x-auto py-2 no-scrollbar border-t border-white/5 text-xs">
+          {[...mainNavItems, ...secondaryNavItems].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-white text-black font-semibold shadow-sm'
+                    ? 'bg-white text-black font-semibold'
                     : 'text-neutral-400 hover:text-white hover:bg-white/5'
                 }`}
               >

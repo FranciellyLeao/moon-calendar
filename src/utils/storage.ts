@@ -107,7 +107,22 @@ export function getStoredSettings(): UserSettings {
   const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
   if (!data) return DEFAULT_SETTINGS;
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(data) };
+    const parsed = JSON.parse(data);
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      location: {
+        ...DEFAULT_SETTINGS.location,
+        ...(parsed && typeof parsed.location === 'object' ? parsed.location : {}),
+      },
+      notifications: {
+        ...DEFAULT_SETTINGS.notifications,
+        ...(parsed && typeof parsed.notifications === 'object' ? parsed.notifications : {}),
+      },
+      natalChart: parsed && typeof parsed.natalChart === 'object' && parsed.natalChart !== null
+        ? { ...DEFAULT_SETTINGS.natalChart, ...parsed.natalChart }
+        : DEFAULT_SETTINGS.natalChart,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -121,7 +136,8 @@ export function getStoredJournal(): JournalEntry[] {
   const data = localStorage.getItem(STORAGE_KEYS.JOURNAL);
   if (!data) return INITIAL_JOURNAL;
   try {
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : INITIAL_JOURNAL;
   } catch {
     return INITIAL_JOURNAL;
   }
@@ -135,7 +151,8 @@ export function getStoredIntentions(): IntentionGoal[] {
   const data = localStorage.getItem(STORAGE_KEYS.INTENTIONS);
   if (!data) return INITIAL_INTENTIONS;
   try {
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : INITIAL_INTENTIONS;
   } catch {
     return INITIAL_INTENTIONS;
   }
@@ -149,7 +166,8 @@ export function getStoredCycleLogs(): CycleLog[] {
   const data = localStorage.getItem(STORAGE_KEYS.CYCLE);
   if (!data) return INITIAL_CYCLE_LOGS;
   try {
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : INITIAL_CYCLE_LOGS;
   } catch {
     return INITIAL_CYCLE_LOGS;
   }

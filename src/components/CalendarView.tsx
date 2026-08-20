@@ -5,6 +5,7 @@ import { getMoonPhaseName, getMoonZodiacSign } from '../utils/astronomy';
 import { getDayActivityGuide, type ActivityCategory } from '../utils/activityTiming';
 import * as SunCalc from 'suncalc';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface CalendarViewProps {
   settings: UserSettings;
@@ -104,9 +105,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
   }, [activityFilter, monthData]);
 
   return (
-    <div className="space-y-5 animate-fadeIn max-w-5xl mx-auto">
+    <div className="space-y-5 max-w-5xl mx-auto">
       {/* Sleek Header & Controls */}
-      <div className="bg-[#1c1c1e] rounded-3xl p-4 sm:p-5 border border-white/10 flex flex-wrap items-center justify-between gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[#1c1c1e] rounded-3xl p-4 sm:p-5 border border-white/10 flex flex-wrap items-center justify-between gap-4"
+      >
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-2xl bg-white/5 text-white border border-white/10">
             <CalendarIcon className="w-4 h-4" />
@@ -117,29 +122,40 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleToday}
             className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-medium border border-white/10 transition-all"
           >
             {t('todayButton', lang)}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handlePrevMonth}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all"
           >
             <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleNextMonth}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all"
           >
             <ChevronRight className="w-4 h-4" />
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Clean Filters Row */}
-      <div className="bg-[#1c1c1e] rounded-2xl p-3 border border-white/10 space-y-3">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="bg-[#1c1c1e] rounded-2xl p-3 border border-white/10 space-y-3"
+      >
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
           <span className="text-neutral-400 text-xs font-medium whitespace-nowrap mr-1">
             Filtro de Atividade:
@@ -148,7 +164,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             <button
               key={f.id}
               onClick={() => setActivityFilter(f.id as ActivityCategory | 'all')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border ${
+              className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border ${
                 activityFilter === f.id
                   ? 'bg-white text-black border-white font-semibold'
                   : 'bg-white/5 text-neutral-400 hover:text-white border-white/5'
@@ -182,7 +198,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Days of Week Header */}
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-neutral-400">
@@ -217,9 +233,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             : null;
 
           return (
-            <div
+            <motion.div
               key={dayNum}
               onClick={() => openDayDetails(dateObj)}
+              whileHover={{ scale: 1.04, y: -2 }}
+              whileTap={{ scale: 0.96 }}
               className={`h-20 sm:h-24 rounded-2xl p-2 flex flex-col justify-between cursor-pointer transition-all duration-200 relative border ${
                 isToday
                   ? 'bg-white/10 border-white/40 ring-1 ring-white/30'
@@ -265,7 +283,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
                   <span className="text-orange-400 font-bold">VoC</span>
                 )}
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>

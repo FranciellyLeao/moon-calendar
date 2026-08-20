@@ -19,6 +19,7 @@ import {
   BarChart3,
   Database,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface NavbarProps {
   activeTab: string;
@@ -80,9 +81,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           {/* Brand */}
-          <div
+          <motion.div
             className="flex items-center gap-2.5 cursor-pointer group"
             onClick={() => setActiveTab('dashboard')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:bg-white/20 transition-all">
               <Moon className="w-4 h-4 fill-white/90" />
@@ -90,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="text-sm font-bold tracking-tight text-white">
               Moon Calendar
             </span>
-          </div>
+          </motion.div>
 
           {/* Primary Clean Navigation */}
           <nav className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/10">
@@ -101,14 +104,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    isActive
-                      ? 'bg-white text-black font-semibold shadow-sm'
-                      : 'text-neutral-300 hover:text-white hover:bg-white/10'
-                  }`}
+                  className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all text-neutral-300 hover:text-white"
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
-                  {item.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabBadge"
+                      className="absolute inset-0 bg-white rounded-full"
+                      transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5 font-semibold" style={{ color: isActive ? '#000000' : undefined }}>
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                    {item.label}
+                  </span>
                 </button>
               );
             })}
@@ -117,46 +125,60 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsMoreOpen(!isMoreOpen)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  isSecondaryActive
-                    ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'text-neutral-300 hover:text-white hover:bg-white/10'
-                }`}
+                className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all text-neutral-300 hover:text-white"
               >
-                <span>{activeSecondaryItem ? activeSecondaryItem.label : 'Mais'}</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
+                {isSecondaryActive && (
+                  <motion.div
+                    layoutId="activeTabBadge"
+                    className="absolute inset-0 bg-white rounded-full"
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5 font-semibold" style={{ color: isSecondaryActive ? '#000000' : undefined }}>
+                  <span>{activeSecondaryItem ? activeSecondaryItem.label : 'Mais'}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
+                </span>
               </button>
 
-              {isMoreOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-[#1c1c1e] border border-white/15 rounded-2xl shadow-2xl p-2 z-50 animate-fadeIn backdrop-blur-3xl">
-                  <div className="text-[10px] font-bold text-neutral-400 px-3 py-1 uppercase tracking-wider">
-                    Outros Módulos
-                  </div>
-                  <div className="space-y-0.5">
-                    {secondaryNavItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setActiveTab(item.id);
-                            setIsMoreOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                            isActive
-                              ? 'bg-white text-black font-semibold'
-                              : 'text-neutral-300 hover:bg-white/10 hover:text-white'
-                          }`}
-                        >
-                          <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {isMoreOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className="absolute right-0 mt-2 w-56 bg-[#1c1c1e] border border-white/15 rounded-2xl shadow-2xl p-2 z-50 backdrop-blur-3xl"
+                  >
+                    <div className="text-[10px] font-bold text-neutral-400 px-3 py-1 uppercase tracking-wider">
+                      Outros Módulos
+                    </div>
+                    <div className="space-y-0.5">
+                      {secondaryNavItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+                        return (
+                          <motion.button
+                            key={item.id}
+                            onClick={() => {
+                              setActiveTab(item.id);
+                              setIsMoreOpen(false);
+                            }}
+                            whileHover={{ x: 3 }}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                              isActive
+                                ? 'bg-white text-black font-semibold'
+                                : 'text-neutral-300 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                            <span>{item.label}</span>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </nav>
 
@@ -171,15 +193,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{astroData.zodiacSymbol} {astroData.zodiacSign}</span>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={openBackupModal}
               className="p-2 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 border border-white/10 transition-all"
               title="Backup & Exportação"
             >
               <Database className="w-4 h-4" />
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={openSettingsModal}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-neutral-200 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-xs font-medium"
             >
@@ -188,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {settings.location.name}
               </span>
               <Settings className="w-3.5 h-3.5 text-neutral-400 ml-0.5" />
-            </button>
+            </motion.button>
           </div>
         </div>
 

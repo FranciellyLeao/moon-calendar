@@ -20,6 +20,7 @@ import { DayDetailsModal } from './components/DayDetailsModal';
 import { DataBackupModal } from './components/DataBackupModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { Moon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function App() {
   const [settings, setSettings] = useState<UserSettings>(getStoredSettings());
@@ -58,63 +59,73 @@ export function App() {
         openBackupModal={() => setIsBackupOpen(true)}
       />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'dashboard' && (
-          <LunarDashboard
-            astroData={astroData}
-            settings={settings}
-            setActiveTab={setActiveTab}
-            openDayDetails={(d) => setSelectedCalendarDate(d)}
-          />
-        )}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 12, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.99 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {activeTab === 'dashboard' && (
+              <LunarDashboard
+                astroData={astroData}
+                settings={settings}
+                setActiveTab={setActiveTab}
+                openDayDetails={(d) => setSelectedCalendarDate(d)}
+              />
+            )}
 
-        {activeTab === 'calendar' && (
-          <CalendarView
-            settings={settings}
-            openDayDetails={(d) => setSelectedCalendarDate(d)}
-          />
-        )}
+            {activeTab === 'calendar' && (
+              <CalendarView
+                settings={settings}
+                openDayDetails={(d) => setSelectedCalendarDate(d)}
+              />
+            )}
 
-        {activeTab === 'transits' && (
-          <TransitsView settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'transits' && (
+              <TransitsView settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'widgets' && (
-          <WidgetSimulator settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'widgets' && (
+              <WidgetSimulator settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'astrology' && (
-          <AstrologyChart
-            settings={settings}
-            onSaveNatalChart={handleSaveNatalChart}
-          />
-        )}
+            {activeTab === 'astrology' && (
+              <AstrologyChart
+                settings={settings}
+                onSaveNatalChart={handleSaveNatalChart}
+              />
+            )}
 
-        {activeTab === 'synastry' && (
-          <SynastryChart settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'synastry' && (
+              <SynastryChart settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'horoscope' && (
-          <DailyHoroscope settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'horoscope' && (
+              <DailyHoroscope settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'journal' && (
-          <LunarJournal settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'journal' && (
+              <LunarJournal settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'intentions' && (
-          <IntentionsTracker settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'intentions' && (
+              <IntentionsTracker settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'rituals' && (
-          <RitualsLibrary settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'rituals' && (
+              <RitualsLibrary settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'cycle' && (
-          <CycleTracker settings={settings} astroData={astroData} />
-        )}
+            {activeTab === 'cycle' && (
+              <CycleTracker settings={settings} astroData={astroData} />
+            )}
 
-        {activeTab === 'analytics' && <AnalyticsView settings={settings} />}
+            {activeTab === 'analytics' && <AnalyticsView settings={settings} />}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       <SettingsModal
@@ -148,7 +159,7 @@ export function App() {
           </div>
 
           <div className="text-neutral-500">
-            Designed with Apple HIG Principles
+            Designed with Apple HIG Principles & Framer Motion
           </div>
         </div>
       </footer>

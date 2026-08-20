@@ -124,13 +124,13 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
 
 export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSaveNatalChart }) => {
   const lang = settings.language;
-  const initialChart = settings.natalChart || calculateNatalChart('2001-07-20', '05:53', 'Balneário Camboriú', -26.9906, -48.6347, -3, 'Placidus');
+  const initialChart = settings.natalChart || calculateNatalChart('1995-05-15', '08:30', 'São Paulo', -23.5505, -46.6333, -3, 'Placidus');
 
-  const [birthDate, setBirthDate] = useState(initialChart.birthDate || '2001-07-20');
-  const [birthTime, setBirthTime] = useState(initialChart.birthTime || '05:53');
-  const [birthCity, setBirthCity] = useState(initialChart.birthCity || 'Balneário Camboriú');
-  const [lat, setLat] = useState<number>(initialChart.lat ?? -26.9906);
-  const [lng, setLng] = useState<number>(initialChart.lng ?? -48.6347);
+  const [birthDate, setBirthDate] = useState(initialChart.birthDate || '1995-05-15');
+  const [birthTime, setBirthTime] = useState(initialChart.birthTime || '08:30');
+  const [birthCity, setBirthCity] = useState(initialChart.birthCity || 'São Paulo');
+  const [lat, setLat] = useState<number>(initialChart.lat ?? -23.5505);
+  const [lng, setLng] = useState<number>(initialChart.lng ?? -46.6333);
 
   const [utcOffset, setUtcOffset] = useState<number>(initialChart.utcOffset ?? -3);
   const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>('Placidus');

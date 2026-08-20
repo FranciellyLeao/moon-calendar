@@ -37,6 +37,8 @@ export interface NatalChart {
   lat?: number;
   lng?: number;
   utcOffset?: number;
+  timezone?: string;
+  houseSystem?: 'Placidus' | 'Equal' | 'WholeSign';
   sunSign: string;
   sunSymbol: string;
   moonSign: string;

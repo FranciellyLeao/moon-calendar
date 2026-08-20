@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { NatalChart, UserSettings } from '../types';
 import type { PlanetPosition, AspectData } from '../utils/planetaryPositions';
 import { chartAngle, formatDMS } from '../utils/format';
 import { calculateNatalChart, SIGN_DESCRIPTIONS } from '../utils/astrology';
-import { CITIES_DATABASE, findCity, geocodeCityOnline } from '../utils/geocoding';
+import { CITIES_DATABASE, findCity, geocodeCityOnline, getHistoricalUtcOffset } from '../utils/geocoding';
 import { generateAINatalChartReading } from '../utils/gemini';
 import { generateOfflineNatalReading } from '../utils/astrologyEngine';
 import {
@@ -42,6 +42,30 @@ const NATURE_ICON: Record<string, string> = {
   neutral: '⚪',
 };
 
+const WHEEL_BODIES = ['Sol', 'Lua', 'Mercúrio', 'Vênus', 'Marte', 'Júpiter', 'Saturno', 'Urano', 'Netuno', 'Plutão', 'Nodo Norte', 'Quíron'];
+
+/** Radial collision avoidance offset calculator */
+function getRadialLevels(planets: PlanetPosition[]): Map<string, number> {
+  const sorted = [...planets].sort((a, b) => a.longitude - b.longitude);
+  const levels = new Map<string, number>();
+
+  let currentLevel = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0) {
+      const prevLng = sorted[i - 1].longitude;
+      const currLng = sorted[i].longitude;
+      const diff = Math.abs(currLng - prevLng);
+      if (diff < 6 || Math.abs(diff - 360) < 6) {
+        currentLevel = (currentLevel + 1) % 3;
+      } else {
+        currentLevel = 0;
+      }
+    }
+    levels.set(sorted[i].planet, currentLevel);
+  }
+  return levels;
+}
+
 /**
  * SVG Mandala Wheel Renderer
  * Fixes Ascendant (ascendant, ascendant) === 180° (Left horizontal axis / 9 o'clock)
@@ -50,14 +74,28 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
   const cx = 150, cy = 150;
   const outerR = 135, innerR = 100, coreR = 60, centerR = 22;
 
-  // Convert astronomical longitude to SVG Cartesian angle
-  // chartAngle(ascendant, ascendant) === 180° (Left = 9 o'clock)
+  /**
+   * chartAngle projection:
+   * 0°   -> right
+   * 90°  -> top
+   * 180° -> left (ASC)
+   * 270° -> bottom
+   */
   const getSvgRad = (longitude: number) => {
-    const projAngle = chartAngle(longitude, ascendant);
-    // Convert angle to SVG coordinates (0° = Right, 90° = Top, 180° = Left, 270° = Bottom)
-    const svgDeg = 180 - (projAngle - 180);
-    return (svgDeg * Math.PI) / 180;
+    const angle = chartAngle(longitude, ascendant);
+    return (angle * Math.PI) / 180;
   };
+
+  const polar = (longitude: number, radius: number) => {
+    const rad = getSvgRad(longitude);
+    return {
+      x: cx + radius * Math.cos(rad),
+      y: cy - radius * Math.sin(rad),
+    };
+  };
+
+  const wheelBodies = planets.filter(p => WHEEL_BODIES.includes(p.planet));
+  const radialLevels = getRadialLevels(wheelBodies);
 
   return (
     <svg viewBox="0 0 300 300" className="w-full h-full drop-shadow-xl">
@@ -69,16 +107,13 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
 
       {/* House Cusp lines */}
       {cusps.map((cuspLng, i) => {
-        const rad = getSvgRad(cuspLng);
-        const x1 = cx + coreR * Math.cos(rad);
-        const y1 = cy - coreR * Math.sin(rad);
-        const x2 = cx + outerR * Math.cos(rad);
-        const y2 = cy - outerR * Math.sin(rad);
+        const p1 = polar(cuspLng, coreR);
+        const p2 = polar(cuspLng, outerR);
         const isAxis = i === 0 || i === 9; // ASC (House 1) or MC (House 10)
         return (
           <line
             key={i}
-            x1={x1} y1={y1} x2={x2} y2={y2}
+            x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
             stroke={isAxis ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.12)"}
             strokeWidth={isAxis ? 1.5 : 0.8}
             strokeDasharray={isAxis ? undefined : "3 3"}
@@ -89,10 +124,9 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
       {/* Zodiac sign symbols in outer ring */}
       {['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'].map((sym, i) => {
         const signCenterLng = i * 30 + 15;
-        const rad = getSvgRad(signCenterLng);
-        const r = (outerR + innerR) / 2;
+        const pt = polar(signCenterLng, (outerR + innerR) / 2);
         return (
-          <text key={i} x={cx + r * Math.cos(rad)} y={cy - r * Math.sin(rad)}
+          <text key={i} x={pt.x} y={pt.y}
             textAnchor="middle" dominantBaseline="central"
             fill="rgba(255,255,255,0.5)" fontSize="10" fontWeight="medium">
             {sym}
@@ -100,16 +134,15 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
         );
       })}
 
-      {/* Planets */}
-      {planets.slice(0, 12).map((planet, i) => {
-        const rad = getSvgRad(planet.longitude);
-        const r = innerR - 14 - (i % 3) * 11;
-        const px = cx + r * Math.cos(rad);
-        const py = cy - r * Math.sin(rad);
+      {/* Planets with anti-collision staggered radial levels */}
+      {wheelBodies.map((planet) => {
+        const level = radialLevels.get(planet.planet) || 0;
+        const r = innerR - 14 - level * 12;
+        const pt = polar(planet.longitude, r);
         return (
           <g key={planet.planet}>
-            <circle cx={px} cy={py} r="9" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-            <text x={px} y={py} textAnchor="middle" dominantBaseline="central"
+            <circle cx={pt.x} cy={pt.y} r="9" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <text x={pt.x} y={pt.y} textAnchor="middle" dominantBaseline="central"
               fill={planet.isRetrograde ? '#ff9f0a' : '#ffffff'} fontSize="8" fontWeight="bold">
               {planet.symbol}
             </text>
@@ -141,7 +174,9 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [lng, setLng] = useState<number>(initialChart.lng ?? -46.6333);
 
   const [utcOffset, setUtcOffset] = useState<number>(initialChart.utcOffset ?? -3);
-  const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>('Placidus');
+  const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>(
+    initialChart.houseSystem ?? 'Placidus'
+  );
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
 
   const [chart, setChart] = useState<NatalChart>(initialChart);
@@ -151,22 +186,38 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [engineType, setEngineType] = useState<'gemini' | 'offline'>('offline');
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
 
-  const handleCityChange = async (cityName: string) => {
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-calculate historical UTC offset when date/time/city changes
+  useEffect(() => {
+    const match = findCity(birthCity);
+    if (match) {
+      const histOffset = getHistoricalUtcOffset(match.timezone, birthDate, birthTime);
+      setUtcOffset(histOffset);
+    }
+  }, [birthDate, birthTime, birthCity]);
+
+  const handleCityChange = (cityName: string) => {
     setBirthCity(cityName);
     const match = findCity(cityName);
     if (match) {
       setLat(match.lat);
       setLng(match.lng);
-      setUtcOffset(match.defaultUtcOffset);
+      const histOffset = getHistoricalUtcOffset(match.timezone, birthDate, birthTime);
+      setUtcOffset(histOffset);
     } else if (cityName.trim().length > 3) {
-      setIsGeocoding(true);
-      const online = await geocodeCityOnline(cityName);
-      if (online) {
-        setLat(online.lat);
-        setLng(online.lng);
-        setUtcOffset(online.defaultUtcOffset);
-      }
-      setIsGeocoding(false);
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = setTimeout(async () => {
+        setIsGeocoding(true);
+        const online = await geocodeCityOnline(cityName);
+        if (online) {
+          setLat(online.lat);
+          setLng(online.lng);
+          const histOffset = getHistoricalUtcOffset(online.timezone, birthDate, birthTime);
+          setUtcOffset(histOffset);
+        }
+        setIsGeocoding(false);
+      }, 600);
     }
   };
 
@@ -204,6 +255,10 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
 
   const fullChart = chart.fullChart;
   const aspects: AspectData[] = fullChart?.aspects || [];
+
+  // Stable planet lookup
+  const sunPlanet  = fullChart?.tropical.find(p => p.planet === 'Sol');
+  const moonPlanet = fullChart?.tropical.find(p => p.planet === 'Lua');
 
   const tabs: { id: Tab; label: string; emoji: string }[] = [
     { id: 'tropical', label: 'Tropical', emoji: '☀️' },
@@ -298,8 +353,8 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
         {/* Big 3 Badges */}
         <div className="flex flex-wrap items-center gap-2 mt-5">
           {[
-            { label: '☉ Sol', value: `${chart.sunSymbol} ${fullChart?.tropical[0]?.signPt || chart.sunSign}` },
-            { label: '☽ Lua', value: `${chart.moonSymbol} ${fullChart?.tropical[1]?.signPt || chart.moonSign}` },
+            { label: '☉ Sol', value: `${chart.sunSymbol} ${sunPlanet?.signPt || chart.sunSign}` },
+            { label: '☽ Lua', value: `${chart.moonSymbol} ${moonPlanet?.signPt || chart.moonSign}` },
             { label: '↑ Ascendente', value: `${chart.risingSymbol} ${fullChart?.ascendantSignPt || chart.risingSign}` },
             ...(fullChart ? [{ label: 'MC (Meio do Céu)', value: `${fullChart.midheavenSymbol} ${fullChart.midheavenSignPt}` }] : []),
           ].map(b => (
@@ -383,7 +438,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-neutral-400 mb-1 font-medium text-[11px]">Fuso UTC</label>
+                  <label className="block text-neutral-400 mb-1 font-medium text-[11px]">Fuso UTC (Histórico)</label>
                   <input
                     type="number"
                     value={utcOffset}
@@ -601,8 +656,8 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           {/* Big 3 Descriptions */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { label: 'Sol ☉', sign: fullChart?.tropical[0]?.signPt || chart.sunSign, symbol: chart.sunSymbol, desc: sunDesc },
-              { label: 'Lua ☽', sign: fullChart?.tropical[1]?.signPt || chart.moonSign, symbol: chart.moonSymbol, desc: moonDesc },
+              { label: 'Sol ☉', sign: sunPlanet?.signPt || chart.sunSign, symbol: chart.sunSymbol, desc: sunDesc },
+              { label: 'Lua ☽', sign: moonPlanet?.signPt || chart.moonSign, symbol: chart.moonSymbol, desc: moonDesc },
               { label: 'Ascendente ↑', sign: fullChart?.ascendantSignPt || chart.risingSign, symbol: chart.risingSymbol, desc: risingDesc },
             ].map(({ label, sign, symbol, desc }) => (
               <div key={label} className="bg-[#1c1c1e] rounded-2xl p-4 border border-white/10 space-y-1">

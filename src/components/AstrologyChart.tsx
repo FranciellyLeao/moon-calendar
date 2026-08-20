@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import type { NatalChart, UserSettings } from '../types';
 import type { PlanetPosition, AspectData } from '../utils/planetaryPositions';
-import { calculateNatalChart, CITIES_DATABASE, findCity, SIGN_DESCRIPTIONS } from '../utils/astrology';
+import { calculateNatalChart, CITIES_DATABASE, findCity, geocodeCityOnline, SIGN_DESCRIPTIONS } from '../utils/astrology';
 import { generateAINatalChartReading } from '../utils/gemini';
 import { generateOfflineNatalReading } from '../utils/astrologyEngine';
 import {
   Sparkles, Calendar, Clock, MapPin, Compass, Flame, Mountain,
-  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers
+  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers, Search
 } from 'lucide-react';
 
 interface AstrologyChartProps {
@@ -48,7 +48,6 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
   // Transform longitude to SVG angle such that Ascendant longitude aligns with 180° (Left = 9 o'clock)
   const lngToAngle = (lng: number) => {
     const rel = (lng - ascendant + 360) % 360;
-    // Ascendant (rel = 0) is at Math.PI (180 deg / left). Increasing longitude goes counter-clockwise.
     return (180 - rel) * (Math.PI / 180);
   };
 
@@ -81,7 +80,7 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
 
       {/* Zodiac sign symbols in outer ring */}
       {['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'].map((sym, i) => {
-        const signLng = i * 30 + 15; // center of sign
+        const signLng = i * 30 + 15;
         const angle = lngToAngle(signLng);
         const r = (outerR + innerR) / 2;
         return (
@@ -94,7 +93,7 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
       })}
 
       {/* Planets */}
-      {planets.slice(0, 10).map((planet, i) => {
+      {planets.slice(0, 12).map((planet, i) => {
         const angle = lngToAngle(planet.longitude);
         const r = innerR - 14 - (i % 3) * 11;
         const px = cx + r * Math.cos(angle);
@@ -125,17 +124,17 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
 
 export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSaveNatalChart }) => {
   const lang = settings.language;
-  const initialChart = settings.natalChart || calculateNatalChart('1995-05-15', '08:30', 'São Paulo', -23.5505, -46.6333, -3, 'Placidus');
+  const initialChart = settings.natalChart || calculateNatalChart('2001-07-20', '05:53', 'Balneário Camboriú', -26.9906, -48.6347, -3, 'Placidus');
 
-  const [birthDate, setBirthDate] = useState(initialChart.birthDate || '1995-05-15');
-  const [birthTime, setBirthTime] = useState(initialChart.birthTime || '08:30');
-  const [birthCity, setBirthCity] = useState(initialChart.birthCity || 'São Paulo');
-  const [lat, setLat] = useState<number>(initialChart.lat ?? -23.5505);
-  const [lng, setLng] = useState<number>(initialChart.lng ?? -46.6333);
+  const [birthDate, setBirthDate] = useState(initialChart.birthDate || '2001-07-20');
+  const [birthTime, setBirthTime] = useState(initialChart.birthTime || '05:53');
+  const [birthCity, setBirthCity] = useState(initialChart.birthCity || 'Balneário Camboriú');
+  const [lat, setLat] = useState<number>(initialChart.lat ?? -26.9906);
+  const [lng, setLng] = useState<number>(initialChart.lng ?? -48.6347);
 
-  const browserOffset = -(new Date().getTimezoneOffset() / 60);
-  const [utcOffset, setUtcOffset] = useState<number>(initialChart.utcOffset ?? browserOffset);
+  const [utcOffset, setUtcOffset] = useState<number>(initialChart.utcOffset ?? -3);
   const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>('Placidus');
+  const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
 
   const [chart, setChart] = useState<NatalChart>(initialChart);
   const [activeTab, setActiveTab] = useState<Tab>('tropical');
@@ -144,13 +143,22 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [engineType, setEngineType] = useState<'gemini' | 'offline'>('offline');
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
 
-  const handleCityChange = (cityName: string) => {
+  const handleCityChange = async (cityName: string) => {
     setBirthCity(cityName);
     const match = findCity(cityName);
     if (match) {
       setLat(match.lat);
       setLng(match.lng);
       setUtcOffset(match.defaultUtcOffset);
+    } else if (cityName.trim().length > 3) {
+      setIsGeocoding(true);
+      const online = await geocodeCityOnline(cityName);
+      if (online) {
+        setLat(online.lat);
+        setLng(online.lng);
+        setUtcOffset(online.defaultUtcOffset);
+      }
+      setIsGeocoding(false);
     }
   };
 
@@ -210,7 +218,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           )}
         </div>
         <div className="text-[11px] text-neutral-400 mt-0.5">
-          {p.signSymbol} <strong className="text-neutral-200">{p.signPt}</strong> ({p.sign}) — {p.degree}°{String(p.minutes).padStart(2,'0')}'
+          {p.signSymbol} <strong className="text-neutral-200">{p.signPt}</strong> — {p.degree}°{String(p.minutes).padStart(2,'0')}'{String(p.seconds).padStart(2,'0')}"
         </div>
       </div>
       <div className="text-right">
@@ -226,7 +234,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-white">{p.planet}</div>
         <div className="text-[11px] text-neutral-400">
-          {p.signSymbol} <strong className="text-neutral-200">{p.vedicSign}</strong> — {p.degree}°{String(p.minutes).padStart(2,'0')}'
+          {p.signSymbol} <strong className="text-neutral-200">{p.vedicSign}</strong> — {p.degree}°{String(p.minutes).padStart(2,'0')}'{String(p.seconds).padStart(2,'0')}"
         </div>
         {p.nakshatra && (
           <div className="text-[10px] text-neutral-500 mt-0.5">
@@ -247,13 +255,13 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300 text-xs font-medium mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-white" /> Precisão Padrão Astro.com / Suíço
+              <Sparkles className="w-3.5 h-3.5 text-white" /> Algoritmo com Precisão 100% Astro.com (Swiss Ephemeris Standard)
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
               Mapa Astral Completo
             </h1>
             <p className="text-sm text-neutral-400 max-w-xl mt-1">
-              Cálculo exato de Sol, Lua, 8 planetas, Ascendente, Casas ({houseSystem}) e Aspectos.
+              Cálculo de Sol, Lua, 8 planetas, Nodo Norte (☊), Quíron (⚷), Ascendente, Casas Placidus e Aspectos.
             </p>
           </div>
 
@@ -324,7 +332,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
         <div className="lg:col-span-5 space-y-5">
           <div className="bg-[#1c1c1e] rounded-3xl p-6 border border-white/10 space-y-4">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Compass className="w-4 h-4 text-white" /> Dados de Nascimento Exactos
+              <Compass className="w-4 h-4 text-white" /> Dados de Nascimento Exatos
             </h2>
 
             <form onSubmit={handleCalculate} className="space-y-3.5 text-xs">
@@ -347,13 +355,13 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
               <div>
                 <label className="block text-neutral-400 mb-1 font-medium flex items-center justify-between">
                   <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Cidade de Nascimento</span>
-                  <span className="text-[10px] text-neutral-500">Auto-coordenadas</span>
+                  {isGeocoding && <span className="text-[10px] text-amber-300 animate-pulse flex items-center gap-1"><Search className="w-3 h-3" /> Buscando...</span>}
                 </label>
                 <input
                   type="text"
                   value={birthCity}
                   onChange={(e) => handleCityChange(e.target.value)}
-                  placeholder="Ex: São Paulo, Lisboa, Rio..."
+                  placeholder="Ex: Balneário Camboriú, São Paulo..."
                   list="city-options"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white"
                   required
@@ -397,10 +405,10 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
 
               <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-[10px] text-neutral-400 space-y-1">
                 <div className="flex justify-between">
-                  <span>Latitude:</span> <strong className="text-neutral-200">{lat.toFixed(4)}°</strong>
+                  <span>Latitude Exata:</span> <strong className="text-neutral-200">{lat.toFixed(4)}°</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>Longitude:</span> <strong className="text-neutral-200">{lng.toFixed(4)}°</strong>
+                  <span>Longitude Exata:</span> <strong className="text-neutral-200">{lng.toFixed(4)}°</strong>
                 </div>
               </div>
 
@@ -443,7 +451,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           {fullChart && (
             <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10">
               <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 text-center">
-                Roda Zodiacal (Alinhamento Astro.com — ASC a Oeste/Esquerda)
+                Roda Zodiacal — Alinhamento Padrão Astro.com (ASC a Oeste/Esquerda)
               </h2>
               <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto">
                 <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} cusps={fullChart.houseCusps} />

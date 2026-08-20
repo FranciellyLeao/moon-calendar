@@ -2,7 +2,6 @@ import type { NatalChart } from '../types';
 import { ZODIAC_SIGNS } from './astronomy';
 import { calcFullNatalChart } from './planetaryPositions';
 
-/** Major Cities Database with exact Latitude, Longitude and default UTC offset */
 export interface CityCoordinates {
   name: string;
   country: string;
@@ -12,6 +11,23 @@ export interface CityCoordinates {
 }
 
 export const CITIES_DATABASE: CityCoordinates[] = [
+  // Santa Catarina & South
+  { name: 'Balneário Camboriú', country: 'Brasil', lat: -26.9906, lng: -48.6347, defaultUtcOffset: -3 },
+  { name: 'Itajaí', country: 'Brasil', lat: -26.9080, lng: -48.6619, defaultUtcOffset: -3 },
+  { name: 'Florianópolis', country: 'Brasil', lat: -27.5954, lng: -48.5480, defaultUtcOffset: -3 },
+  { name: 'Joinville', country: 'Brasil', lat: -26.3045, lng: -48.8487, defaultUtcOffset: -3 },
+  { name: 'Blumenau', country: 'Brasil', lat: -26.9194, lng: -49.0661, defaultUtcOffset: -3 },
+  { name: 'Chapecó', country: 'Brasil', lat: -27.1004, lng: -52.6152, defaultUtcOffset: -3 },
+  { name: 'Criciúma', country: 'Brasil', lat: -28.6773, lng: -49.3704, defaultUtcOffset: -3 },
+  { name: 'Lages', country: 'Brasil', lat: -27.8160, lng: -50.3260, defaultUtcOffset: -3 },
+  { name: 'Jaraguá do Sul', country: 'Brasil', lat: -26.4851, lng: -49.0805, defaultUtcOffset: -3 },
+  { name: 'Tubarão', country: 'Brasil', lat: -28.4728, lng: -49.0142, defaultUtcOffset: -3 },
+  { name: 'Brusque', country: 'Brasil', lat: -27.0979, lng: -48.9130, defaultUtcOffset: -3 },
+  { name: 'São José', country: 'Brasil', lat: -27.6136, lng: -48.6366, defaultUtcOffset: -3 },
+  { name: 'Palhoça', country: 'Brasil', lat: -27.6447, lng: -48.6694, defaultUtcOffset: -3 },
+  { name: 'Camboriú', country: 'Brasil', lat: -27.0244, lng: -48.6553, defaultUtcOffset: -3 },
+  { name: 'Navegantes', country: 'Brasil', lat: -26.8986, lng: -48.6536, defaultUtcOffset: -3 },
+  // Major Capitals & Metropolises
   { name: 'São Paulo', country: 'Brasil', lat: -23.5505, lng: -46.6333, defaultUtcOffset: -3 },
   { name: 'Rio de Janeiro', country: 'Brasil', lat: -22.9068, lng: -43.1729, defaultUtcOffset: -3 },
   { name: 'Brasília', country: 'Brasil', lat: -15.7975, lng: -47.8919, defaultUtcOffset: -3 },
@@ -25,7 +41,6 @@ export const CITIES_DATABASE: CityCoordinates[] = [
   { name: 'Belém', country: 'Brasil', lat: -1.4558, lng: -48.4902, defaultUtcOffset: -3 },
   { name: 'Goiânia', country: 'Brasil', lat: -16.6869, lng: -49.2648, defaultUtcOffset: -3 },
   { name: 'Campinas', country: 'Brasil', lat: -22.9099, lng: -47.0626, defaultUtcOffset: -3 },
-  { name: 'Florianópolis', country: 'Brasil', lat: -27.5954, lng: -48.5480, defaultUtcOffset: -3 },
   { name: 'Vitória', country: 'Brasil', lat: -20.3155, lng: -40.3128, defaultUtcOffset: -3 },
   { name: 'Lisboa', country: 'Portugal', lat: 38.7223, lng: -9.1393, defaultUtcOffset: 0 },
   { name: 'Porto', country: 'Portugal', lat: 41.1579, lng: -8.6291, defaultUtcOffset: 0 },
@@ -41,6 +56,31 @@ export function findCity(cityName: string): CityCoordinates | undefined {
   return CITIES_DATABASE.find(
     (c) => c.name.toLowerCase() === norm || c.name.toLowerCase().includes(norm)
   );
+}
+
+/** Geocode city using OpenStreetMap Nominatim API for any unlisted city */
+export async function geocodeCityOnline(cityName: string): Promise<CityCoordinates | null> {
+  const localMatch = findCity(cityName);
+  if (localMatch) return localMatch;
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cityName)}&limit=1`);
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      return {
+        name: data[0].display_name.split(',')[0],
+        country: 'Global',
+        lat,
+        lng,
+        defaultUtcOffset: -3,
+      };
+    }
+  } catch (e) {
+    console.error('Geocoding error:', e);
+  }
+  return null;
 }
 
 export function getSunZodiacSign(month: number, day: number) {
@@ -70,10 +110,9 @@ export function calculateNatalChart(
   const [year, month, day] = birthDateStr.split('-').map(Number);
   const [hours, minutes] = (birthTimeStr || '12:00').split(':').map(Number);
 
-  // Look up city if coordinates not explicitly provided
   const cityMatch = findCity(birthCity);
-  const finalLat = lat ?? cityMatch?.lat ?? -23.5505;
-  const finalLng = lng ?? cityMatch?.lng ?? -46.6333;
+  const finalLat = lat ?? cityMatch?.lat ?? -26.9906; // Default to Balneário Camboriú if not found
+  const finalLng = lng ?? cityMatch?.lng ?? -48.6347;
   const finalUtcOffset = utcOffset ?? cityMatch?.defaultUtcOffset ?? -3;
 
   const fullChart = calcFullNatalChart(
@@ -153,7 +192,7 @@ export const SIGN_DESCRIPTIONS: Record<string, { pt: string; en: string }> = {
   Leo:         { pt: 'Radiante, generoso e magnético. Carrega o brilho aquecido do Sol central.', en: 'Radiant, generous, and magnetic. Carries the warm glow of the central Sun.' },
   Virgo:       { pt: 'Analítico, dedicado ao aperfeiçoamento, saúde, rituais diários e discernimento.', en: 'Analytical, dedicated to self-improvement, health, daily rituals, and clarity.' },
   Libra:       { pt: 'Harmonioso, diplomático e amante da estética, das artes e dos relacionamentos.', en: 'Harmonious, diplomatic, lover of aesthetics, fine arts, and balanced relationships.' },
-  Scorpio:     { pt: 'Profundo, transformador e místico. Navega pelas correntes occultas da regeneração.', en: 'Deep, transformative, and mystical. Navigates the hidden currents of rebirth.' },
+  Scorpio:     { pt: 'Profundo, transformador e místico. Navega pelas correntes ocultas da regeneração.', en: 'Deep, transformative, and mystical. Navigates the hidden currents of rebirth.' },
   Sagittarius: { pt: 'Expansivo, filosófico e aventureiro. Busca sempre a verdade nos horizontes distantes.', en: 'Expansive, philosophical, and adventurous. Always seeking truth on distant horizons.' },
   Capricorn:   { pt: 'Determinado, disciplinado e mestre na construção de realizações duradouras.', en: 'Determined, disciplined, and a master at constructing long-lasting achievements.' },
   Aquarius:    { pt: 'Visionário, original e humanitário. Traz as brisas inovadoras do futuro.', en: 'Visionary, original, and humanitarian. Brings innovative breezes from the future.' },

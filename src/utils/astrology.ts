@@ -20,7 +20,7 @@ export function getSunZodiacSign(month: number, day: number) {
   return ZODIAC_SIGNS[11];
 }
 
-export function calculateNatalChart(
+export async function calculateNatalChart(
   birthDateStr: string,
   birthTimeStr: string,
   birthCity: string,
@@ -28,7 +28,7 @@ export function calculateNatalChart(
   lng?: number,
   utcOffset?: number,
   houseSystem: 'Placidus' | 'Equal' | 'WholeSign' = 'Placidus'
-): NatalChart {
+): Promise<NatalChart> {
   const [year, month, day] = birthDateStr.split('-').map(Number);
   const [hours, minutes] = (birthTimeStr || '12:00').split(':').map(Number);
 
@@ -37,7 +37,7 @@ export function calculateNatalChart(
   const finalLng = lng ?? cityMatch?.lng ?? -48.6347;
   const finalUtcOffset = utcOffset ?? cityMatch?.defaultUtcOffset ?? -3;
 
-  const fullChart = calcFullNatalChart(
+  const fullChart = await calcFullNatalChart(
     year, month, day,
     hours, minutes,
     finalLat, finalLng, finalUtcOffset,

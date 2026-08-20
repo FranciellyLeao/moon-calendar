@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import type { NatalChart, UserSettings } from '../types';
 import type { PlanetPosition, AspectData } from '../utils/planetaryPositions';
@@ -159,24 +159,42 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
 
 export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSaveNatalChart }) => {
   const lang = settings.language;
-  const initialChart = settings.natalChart || calculateNatalChart('1995-05-15', '08:30', 'São Paulo', -23.5505, -46.6333, -3, 'Placidus');
+  const initialChart = settings.natalChart ?? null;
 
-  const [birthDate, setBirthDate] = useState(initialChart.birthDate || '1995-05-15');
-  const [birthTime, setBirthTime] = useState(initialChart.birthTime || '08:30');
-  const [birthCity, setBirthCity] = useState(initialChart.birthCity || 'São Paulo');
-  const [lat, setLat] = useState<number>(initialChart.lat ?? -23.5505);
-  const [lng, setLng] = useState<number>(initialChart.lng ?? -46.6333);
+  const [birthDate, setBirthDate] = useState(initialChart?.birthDate || '1995-05-15');
+  const [birthTime, setBirthTime] = useState(initialChart?.birthTime || '08:30');
+  const [birthCity, setBirthCity] = useState(initialChart?.birthCity || 'São Paulo');
+  const [lat, setLat] = useState<number>(initialChart?.lat ?? -23.5505);
+  const [lng, setLng] = useState<number>(initialChart?.lng ?? -46.6333);
 
-  const [utcOffset, setUtcOffset] = useState<number>(initialChart.utcOffset ?? -3);
-  const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>('Placidus');
+  const [utcOffset, setUtcOffset] = useState<number>(initialChart?.utcOffset ?? -3);
+  const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>(
+    initialChart?.houseSystem ?? 'Placidus'
+  );
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+  const [isCalculating, setIsCalculating] = useState<boolean>(!initialChart);
 
-  const [chart, setChart] = useState<NatalChart>(initialChart);
+  const [chart, setChart] = useState<NatalChart | null>(initialChart);
   const [activeTab, setActiveTab] = useState<Tab>('tropical');
   const [aiReading, setAiReading] = useState<string | null>(null);
   const [isGeneratingAI, setIsGeneratingAI] = useState<boolean>(false);
   const [engineType, setEngineType] = useState<'gemini' | 'offline'>('offline');
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (initialChart) return;
+    let isSubscribed = true;
+    (async () => {
+      setIsCalculating(true);
+      const c = await calculateNatalChart('1995-05-15', '08:30', 'São Paulo', -23.5505, -46.6333, -3, 'Placidus');
+      if (isSubscribed) {
+        setChart(c);
+        onSaveNatalChart(c);
+        setIsCalculating(false);
+      }
+    })();
+    return () => { isSubscribed = false; };
+  }, []);
 
   const handleCityChange = async (cityName: string) => {
     setBirthCity(cityName);
@@ -197,15 +215,18 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
     }
   };
 
-  const handleCalculate = (e: React.FormEvent) => {
+  const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newChart = calculateNatalChart(birthDate, birthTime, birthCity, lat, lng, utcOffset, houseSystem);
+    setIsCalculating(true);
+    const newChart = await calculateNatalChart(birthDate, birthTime, birthCity, lat, lng, utcOffset, houseSystem);
     setChart(newChart);
     setAiReading(null);
     onSaveNatalChart(newChart);
+    setIsCalculating(false);
   };
 
   const handleGenerateNatalReading = async (mode: 'gemini' | 'offline') => {
+    if (!chart) return;
     setIsGeneratingAI(true);
     setEngineType(mode);
     try {
@@ -224,6 +245,15 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
       setIsGeneratingAI(false);
     }
   };
+
+  if (!chart) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] text-white gap-3">
+        <Loader2 className="w-6 h-6 animate-spin text-amber-300" />
+        <span>Calculando mapa astral com Swiss Ephemeris...</span>
+      </div>
+    );
+  }
 
   const sunDesc = SIGN_DESCRIPTIONS[chart.sunSign] || SIGN_DESCRIPTIONS['Taurus'];
   const moonDesc = SIGN_DESCRIPTIONS[chart.moonSign] || SIGN_DESCRIPTIONS['Scorpio'];
@@ -472,9 +502,16 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
               </div>
 
               <motion.button type="submit"
-                whileHover={{ y: -2, scale: 1.005 }} whileTap={{ scale: 0.985 }} transition={softSpring}
-                className="w-full py-3.5 rounded-[16px] bg-[#f6f0e8] hover:bg-white text-[#15121b] font-semibold text-xs transition-colors mt-2 shadow-[0_10px_30px_rgba(246,240,232,0.12)]">
-                Recalcular Mapa Astral
+                disabled={isCalculating}
+                whileHover={isCalculating ? undefined : { y: -2, scale: 1.005 }}
+                whileTap={isCalculating ? undefined : { scale: 0.985 }}
+                transition={softSpring}
+                className="w-full py-3.5 rounded-[16px] bg-[#f6f0e8] hover:bg-white text-[#15121b] font-semibold text-xs transition-colors mt-2 shadow-[0_10px_30px_rgba(246,240,232,0.12)] disabled:opacity-50 disabled:cursor-wait">
+                {isCalculating ? (
+                  <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Calculando...</span>
+                ) : (
+                  'Recalcular Mapa Astral'
+                )}
               </motion.button>
             </form>
           </div>

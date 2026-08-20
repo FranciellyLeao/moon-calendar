@@ -1,16 +1,17 @@
 /**
  * Planetary Positions & Natal Chart Calculation Pipeline
- * Re-exports modularized astronomy components
+ * Backed directly by Swiss Ephemeris (@swisseph/browser / @swisseph/node)
  */
 import { normalizeDegrees, formatDMS, chartAngle } from './format';
-import { julianDay, julianCenturies, calcObliquity, calcLST, calcAscendant, calcMidheaven } from './astronomyCore';
-import { calcHouseCusps, getHouseForLongitude, type HouseSystemType } from './houses';
-import { calcAllEphemeris, type RawCelestialPosition } from './ephemeris';
-import { getLahiriAyanamsha, toSiderealLongitude, getNakshatraInfo } from './vedic';
+import { getHouseForLongitude, type HouseSystemType } from './houses';
+import { getNakshatraInfo, toSiderealLongitude, getLahiriAyanamsha } from './vedic';
+import {
+  calculateSwissAstronomy,
+  type RawCelestialPosition,
+} from './swissEphemeris';
 
 export { normalizeDegrees, formatDMS, chartAngle };
-export { julianDay, julianCenturies, calcObliquity, calcLST, calcAscendant, calcMidheaven };
-export { calcHouseCusps, getHouseForLongitude, type HouseSystemType };
+export { getHouseForLongitude, type HouseSystemType };
 export { getLahiriAyanamsha, toSiderealLongitude, getNakshatraInfo };
 
 export const ZODIAC_NAMES = [
@@ -23,19 +24,22 @@ export const ZODIAC_NAMES_PT = [
   'Libra','Escorpião','Sagitário','Capricórnio','Aquário','Peixes'
 ];
 
-export const ZODIAC_SYMBOLS = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
+export const ZODIAC_SYMBOLS = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','FH'];
 
 export interface PlanetPosition {
   planet: string;
   symbol: string;
-  longitude: number;   // tropical ecliptic longitude 0–360
+  longitude: number;           // tropical ecliptic longitude (0-360)
+  tropicalLongitude: number;   // explicit tropical longitude
+  siderealLongitude: number;   // explicit sidereal longitude
+  longitudeSpeed: number;      // angular speed (°/day)
+  isRetrograde: boolean;       // longitudeSpeed < 0
   sign: string;
   signPt: string;
   signSymbol: string;
-  degree: number;      // degree within sign (0–29.99)
-  minutes: number;     // minutes of arc
-  seconds: number;     // seconds of arc
-  isRetrograde: boolean;
+  degree: number;
+  minutes: number;
+  seconds: number;
   house: number;
   vedicSign: string;
   nakshatra?: string;
@@ -133,54 +137,70 @@ function calcAspects(positions: PlanetPosition[]): AspectData[] {
 }
 
 /**
- * Calculate full natal chart pipeline
+ * Calculate full natal chart pipeline using Swiss Ephemeris
  */
-export function calcFullNatalChart(
+export async function calcFullNatalChart(
   year: number, month: number, day: number,
   hour: number, minute: number,
   lat: number, lng: number,
   utcOffset: number = -3,
   houseSystem: HouseSystemType = 'Placidus'
-): FullNatalChart {
-  const ut = hour + minute / 60 - utcOffset;
-  const jd = julianDay(year, month, day, ut);
-  const T  = julianCenturies(jd);
-  const eps = calcObliquity(T);
+): Promise<FullNatalChart> {
+  const swiss = await calculateSwissAstronomy({
+    year, month, day, hour, minute, lat, lng, utcOffset, houseSystem
+  });
 
-  const rawPlanets: RawCelestialPosition[] = calcAllEphemeris(T);
-
-  const lst    = calcLST(jd, lng);
-  const ascLng = calcAscendant(lst, lat, eps);
-  const mcLng  = calcMidheaven(lst, eps);
-  const cusps  = calcHouseCusps(houseSystem, ascLng, mcLng, lat, eps, lst);
-
-  const ayanamsha = getLahiriAyanamsha(T);
+  const cusps = swiss.houseCusps;
+  const ayanamsha = swiss.ayanamshaLahiri;
 
   function makePlanet(p: RawCelestialPosition, tropical = true): PlanetPosition {
-    const longitude = tropical ? p.lng : toSiderealLongitude(p.lng, ayanamsha);
+    const tropicalLng = normalizeDegrees(p.lng);
+    const siderealLng = toSiderealLongitude(tropicalLng, ayanamsha);
+    const longitude   = tropical ? tropicalLng : siderealLng;
     const s = signFromLng(longitude);
-    const nak = getNakshatraInfo(longitude);
+
+    // Nakshatras are strictly calculated from sidereal longitude
+    const nak = getNakshatraInfo(siderealLng);
     const houseCuspsUsed = tropical ? cusps : cusps.map(c => toSiderealLongitude(c, ayanamsha));
+
     return {
-      planet: p.name, symbol: p.symbol, longitude,
-      sign: s.sign, signPt: s.signPt, signSymbol: s.symbol,
-      degree: s.degree, minutes: s.minutes, seconds: s.seconds,
+      planet: p.name,
+      symbol: p.symbol,
+      longitude,
+      tropicalLongitude: tropicalLng,
+      siderealLongitude: siderealLng,
+      longitudeSpeed: p.longitudeSpeed,
       isRetrograde: p.isRetrograde,
+      sign: s.sign,
+      signPt: s.signPt,
+      signSymbol: s.symbol,
+      degree: s.degree,
+      minutes: s.minutes,
+      seconds: s.seconds,
       house: getHouseForLongitude(longitude, houseCuspsUsed),
-      vedicSign: signFromLng(toSiderealLongitude(p.lng, ayanamsha)).signPt,
-      nakshatra: nak.name, nakshatraRuler: nak.ruler, nakshatraPada: nak.pada,
+      vedicSign: signFromLng(siderealLng).signPt,
+      nakshatra: nak.name,
+      nakshatraRuler: nak.ruler,
+      nakshatraPada: nak.pada,
     };
   }
 
-  const tropical = rawPlanets.map(p => makePlanet(p, true));
-  const vedic    = rawPlanets.map(p => makePlanet(p, false));
+  const tropical = swiss.planets.map(p => makePlanet(p, true));
+  const vedic    = swiss.planets.map(p => makePlanet(p, false));
   const aspects  = calcAspects(tropical);
 
+  const ascLng = normalizeDegrees(swiss.ascendant);
+  const mcLng  = normalizeDegrees(swiss.midheaven);
   const ascInfo = signFromLng(ascLng);
   const mcInfo  = signFromLng(mcLng);
-  const vAscInfo = signFromLng(toSiderealLongitude(ascLng, ayanamsha));
-  const moonNak = getNakshatraInfo(tropical[1].longitude);
-  const sunNak  = getNakshatraInfo(tropical[0].longitude);
+
+  const vAscLng  = toSiderealLongitude(ascLng, ayanamsha);
+  const vAscInfo = signFromLng(vAscLng);
+
+  const moonVedic = vedic.find(p => p.planet === 'Lua')!;
+  const sunVedic  = vedic.find(p => p.planet === 'Sol')!;
+  const moonNak = getNakshatraInfo(moonVedic.siderealLongitude);
+  const sunNak  = getNakshatraInfo(sunVedic.siderealLongitude);
 
   return {
     tropical, vedic,

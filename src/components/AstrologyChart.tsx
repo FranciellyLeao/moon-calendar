@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import type { NatalChart, UserSettings } from '../types';
 import type { PlanetPosition, AspectData } from '../utils/planetaryPositions';
 import { chartAngle, formatDMS } from '../utils/format';
 import { calculateNatalChart, SIGN_DESCRIPTIONS } from '../utils/astrology';
-import { CITIES_DATABASE, findCity, geocodeCityOnline, getHistoricalUtcOffset } from '../utils/geocoding';
+import { CITIES_DATABASE, findCity, geocodeCityOnline } from '../utils/geocoding';
 import { generateAINatalChartReading } from '../utils/gemini';
 import { generateOfflineNatalReading } from '../utils/astrologyEngine';
 import {
@@ -36,35 +37,25 @@ const ASPECT_BG: Record<string, string> = {
   'Quincúncio': 'bg-yellow-500/10 border-yellow-500/20',
 };
 
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE } },
+};
+
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
+};
+
+const softSpring = { type: 'spring' as const, stiffness: 260, damping: 24 };
+
 const NATURE_ICON: Record<string, string> = {
   harmonious: '💚',
   tense: '🔴',
   neutral: '⚪',
 };
-
-const WHEEL_BODIES = ['Sol', 'Lua', 'Mercúrio', 'Vênus', 'Marte', 'Júpiter', 'Saturno', 'Urano', 'Netuno', 'Plutão', 'Nodo Norte', 'Quíron'];
-
-/** Radial collision avoidance offset calculator */
-function getRadialLevels(planets: PlanetPosition[]): Map<string, number> {
-  const sorted = [...planets].sort((a, b) => a.longitude - b.longitude);
-  const levels = new Map<string, number>();
-
-  let currentLevel = 0;
-  for (let i = 0; i < sorted.length; i++) {
-    if (i > 0) {
-      const prevLng = sorted[i - 1].longitude;
-      const currLng = sorted[i].longitude;
-      const diff = Math.abs(currLng - prevLng);
-      if (diff < 6 || Math.abs(diff - 360) < 6) {
-        currentLevel = (currentLevel + 1) % 3;
-      } else {
-        currentLevel = 0;
-      }
-    }
-    levels.set(sorted[i].planet, currentLevel);
-  }
-  return levels;
-}
 
 /**
  * SVG Mandala Wheel Renderer
@@ -74,31 +65,23 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
   const cx = 150, cy = 150;
   const outerR = 135, innerR = 100, coreR = 60, centerR = 22;
 
-  /**
-   * chartAngle projection:
-   * 0°   -> right
-   * 90°  -> top
-   * 180° -> left (ASC)
-   * 270° -> bottom
-   */
+  // Convert astronomical longitude to SVG Cartesian angle
+  // chartAngle(ascendant, ascendant) === 180° (Left = 9 o'clock)
   const getSvgRad = (longitude: number) => {
-    const angle = chartAngle(longitude, ascendant);
-    return (angle * Math.PI) / 180;
+    const projAngle = chartAngle(longitude, ascendant);
+    // Convert angle to SVG coordinates (0° = Right, 90° = Top, 180° = Left, 270° = Bottom)
+    const svgDeg = 180 - (projAngle - 180);
+    return (svgDeg * Math.PI) / 180;
   };
-
-  const polar = (longitude: number, radius: number) => {
-    const rad = getSvgRad(longitude);
-    return {
-      x: cx + radius * Math.cos(rad),
-      y: cy - radius * Math.sin(rad),
-    };
-  };
-
-  const wheelBodies = planets.filter(p => WHEEL_BODIES.includes(p.planet));
-  const radialLevels = getRadialLevels(wheelBodies);
 
   return (
-    <svg viewBox="0 0 300 300" className="w-full h-full drop-shadow-xl">
+    <motion.svg
+      viewBox="0 0 300 300"
+      className="w-full h-full drop-shadow-[0_24px_50px_rgba(80,62,130,0.24)]"
+      initial={{ opacity: 0, scale: 0.92, rotate: -3 }}
+      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+      transition={{ duration: 0.9, ease: EASE }}
+    >
       {/* Outer zodiac ring */}
       <circle cx={cx} cy={cy} r={outerR} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
       <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
@@ -107,13 +90,16 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
 
       {/* House Cusp lines */}
       {cusps.map((cuspLng, i) => {
-        const p1 = polar(cuspLng, coreR);
-        const p2 = polar(cuspLng, outerR);
+        const rad = getSvgRad(cuspLng);
+        const x1 = cx + coreR * Math.cos(rad);
+        const y1 = cy - coreR * Math.sin(rad);
+        const x2 = cx + outerR * Math.cos(rad);
+        const y2 = cy - outerR * Math.sin(rad);
         const isAxis = i === 0 || i === 9; // ASC (House 1) or MC (House 10)
         return (
           <line
             key={i}
-            x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+            x1={x1} y1={y1} x2={x2} y2={y2}
             stroke={isAxis ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.12)"}
             strokeWidth={isAxis ? 1.5 : 0.8}
             strokeDasharray={isAxis ? undefined : "3 3"}
@@ -124,9 +110,10 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
       {/* Zodiac sign symbols in outer ring */}
       {['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'].map((sym, i) => {
         const signCenterLng = i * 30 + 15;
-        const pt = polar(signCenterLng, (outerR + innerR) / 2);
+        const rad = getSvgRad(signCenterLng);
+        const r = (outerR + innerR) / 2;
         return (
-          <text key={i} x={pt.x} y={pt.y}
+          <text key={i} x={cx + r * Math.cos(rad)} y={cy - r * Math.sin(rad)}
             textAnchor="middle" dominantBaseline="central"
             fill="rgba(255,255,255,0.5)" fontSize="10" fontWeight="medium">
             {sym}
@@ -134,19 +121,26 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
         );
       })}
 
-      {/* Planets with anti-collision staggered radial levels */}
-      {wheelBodies.map((planet) => {
-        const level = radialLevels.get(planet.planet) || 0;
-        const r = innerR - 14 - level * 12;
-        const pt = polar(planet.longitude, r);
+      {/* Planets */}
+      {planets.slice(0, 12).map((planet, i) => {
+        const rad = getSvgRad(planet.longitude);
+        const r = innerR - 14 - (i % 3) * 11;
+        const px = cx + r * Math.cos(rad);
+        const py = cy - r * Math.sin(rad);
         return (
-          <g key={planet.planet}>
-            <circle cx={pt.x} cy={pt.y} r="9" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-            <text x={pt.x} y={pt.y} textAnchor="middle" dominantBaseline="central"
+          <motion.g
+            key={planet.planet}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ ...softSpring, delay: 0.18 + i * 0.045 }}
+            style={{ transformOrigin: `${px}px ${py}px` }}
+          >
+            <circle cx={px} cy={py} r="9" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <text x={px} y={py} textAnchor="middle" dominantBaseline="central"
               fill={planet.isRetrograde ? '#ff9f0a' : '#ffffff'} fontSize="8" fontWeight="bold">
               {planet.symbol}
             </text>
-          </g>
+          </motion.g>
         );
       })}
 
@@ -159,7 +153,7 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
       {/* Center Label */}
       <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="7" fontWeight="bold">ASTRO.COM</text>
       <text x={cx} y={cy + 6} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="6">PRECISION</text>
-    </svg>
+    </motion.svg>
   );
 };
 
@@ -174,9 +168,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [lng, setLng] = useState<number>(initialChart.lng ?? -46.6333);
 
   const [utcOffset, setUtcOffset] = useState<number>(initialChart.utcOffset ?? -3);
-  const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>(
-    initialChart.houseSystem ?? 'Placidus'
-  );
+  const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>('Placidus');
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
 
   const [chart, setChart] = useState<NatalChart>(initialChart);
@@ -186,38 +178,22 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [engineType, setEngineType] = useState<'gemini' | 'offline'>('offline');
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
 
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-calculate historical UTC offset when date/time/city changes
-  useEffect(() => {
-    const match = findCity(birthCity);
-    if (match) {
-      const histOffset = getHistoricalUtcOffset(match.timezone, birthDate, birthTime);
-      setUtcOffset(histOffset);
-    }
-  }, [birthDate, birthTime, birthCity]);
-
-  const handleCityChange = (cityName: string) => {
+  const handleCityChange = async (cityName: string) => {
     setBirthCity(cityName);
     const match = findCity(cityName);
     if (match) {
       setLat(match.lat);
       setLng(match.lng);
-      const histOffset = getHistoricalUtcOffset(match.timezone, birthDate, birthTime);
-      setUtcOffset(histOffset);
+      setUtcOffset(match.defaultUtcOffset);
     } else if (cityName.trim().length > 3) {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-      searchTimeoutRef.current = setTimeout(async () => {
-        setIsGeocoding(true);
-        const online = await geocodeCityOnline(cityName);
-        if (online) {
-          setLat(online.lat);
-          setLng(online.lng);
-          const histOffset = getHistoricalUtcOffset(online.timezone, birthDate, birthTime);
-          setUtcOffset(histOffset);
-        }
-        setIsGeocoding(false);
-      }, 600);
+      setIsGeocoding(true);
+      const online = await geocodeCityOnline(cityName);
+      if (online) {
+        setLat(online.lat);
+        setLng(online.lng);
+        setUtcOffset(online.defaultUtcOffset);
+      }
+      setIsGeocoding(false);
     }
   };
 
@@ -256,10 +232,6 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const fullChart = chart.fullChart;
   const aspects: AspectData[] = fullChart?.aspects || [];
 
-  // Stable planet lookup
-  const sunPlanet  = fullChart?.tropical.find(p => p.planet === 'Sol');
-  const moonPlanet = fullChart?.tropical.find(p => p.planet === 'Lua');
-
   const tabs: { id: Tab; label: string; emoji: string }[] = [
     { id: 'tropical', label: 'Tropical', emoji: '☀️' },
     { id: 'vedic', label: 'Védico', emoji: '🕉️' },
@@ -267,9 +239,12 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
     { id: 'houses', label: 'Casas', emoji: '🏠' },
   ];
 
-  const renderPlanetRow = (p: PlanetPosition) => (
-    <div key={p.planet}
-      className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-black/40 border border-white/5 hover:border-white/15 transition-all">
+  const renderPlanetRow = (p: PlanetPosition, _i: number) => (
+    <motion.div key={p.planet}
+      variants={fadeUp}
+      whileHover={{ x: 4, scale: 1.008 }}
+      transition={softSpring}
+      className="group flex items-center gap-3 py-3 px-3.5 rounded-[18px] bg-white/[0.035] border border-white/[0.07] hover:bg-white/[0.055] hover:border-[#c7b6ff]/25 transition-colors">
       <span className="text-lg w-7 text-center">{p.symbol}</span>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-white flex items-center gap-1.5">
@@ -287,12 +262,15 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
       <div className="text-right">
         <div className="text-xs font-medium text-neutral-300">Casa {p.house}</div>
       </div>
-    </div>
+    </motion.div>
   );
 
-  const renderVedicRow = (p: PlanetPosition) => (
-    <div key={p.planet}
-      className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-black/40 border border-white/5 hover:border-white/15 transition-all">
+  const renderVedicRow = (p: PlanetPosition, _i: number) => (
+    <motion.div key={p.planet}
+      variants={fadeUp}
+      whileHover={{ x: 4, scale: 1.008 }}
+      transition={softSpring}
+      className="group flex items-center gap-3 py-3 px-3.5 rounded-[18px] bg-white/[0.035] border border-white/[0.07] hover:bg-white/[0.055] hover:border-[#c7b6ff]/25 transition-colors">
       <span className="text-lg w-7 text-center">{p.symbol}</span>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-white">{p.planet}</div>
@@ -308,35 +286,46 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
       <div className="text-right">
         <div className="text-xs font-medium text-neutral-300">Casa {p.house}</div>
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
-    <div className="space-y-6 animate-fadeIn max-w-5xl mx-auto">
+    <MotionConfig reducedMotion="user">
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={stagger}
+      className="relative isolate space-y-6 max-w-6xl mx-auto overflow-hidden rounded-[36px] bg-[#0d0b13] p-3 sm:p-5 text-[#f7f3ee] shadow-[0_36px_120px_rgba(0,0,0,0.38)]"
+    >
+      <div aria-hidden className="pointer-events-none absolute -top-32 -right-24 -z-10 h-80 w-80 rounded-full bg-[#7a5cff]/20 blur-[90px]" />
+      <div aria-hidden className="pointer-events-none absolute top-[38%] -left-32 -z-10 h-72 w-72 rounded-full bg-[#d5a4c8]/10 blur-[100px]" />
       {/* Header Banner */}
-      <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10">
+      <motion.section variants={fadeUp} className="relative overflow-hidden bg-[linear-gradient(135deg,#1d1828_0%,#15121d_58%,#21182a_100%)] rounded-[32px] p-6 sm:p-8 border border-white/[0.08] shadow-[0_24px_70px_rgba(0,0,0,0.28)]">
+        <div aria-hidden className="absolute -top-16 right-6 h-40 w-40 rounded-full bg-[#bca8ff]/15 blur-3xl" />
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300 text-xs font-medium mb-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.1] text-[#ded7e8] text-xs font-medium mb-3">
               <Sparkles className="w-3.5 h-3.5 text-white" /> Algoritmo Modular com Precisão Astro.com
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Mapa Astral Completo
+            <h1 className="max-w-2xl text-3xl sm:text-5xl font-semibold text-[#fbf7f1] tracking-[-0.035em] leading-[0.98]">
+              Seu céu, traduzido em clareza
             </h1>
-            <p className="text-sm text-neutral-400 max-w-xl mt-1">
-              Cálculo de Sol, Lua, 8 planetas, Nodo Norte (☊), Quíron (⚷), Ascendente, Casas Placidus e Aspectos.
+            <p className="text-sm sm:text-base text-[#bcb5c6] max-w-2xl mt-3 leading-relaxed">
+              Uma leitura visual do seu mapa natal com planetas, casas, aspectos e camadas tropical e védica — com foco em descoberta, não em ruído.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button
+            <motion.button
+              whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={softSpring}
               onClick={() => handleGenerateNatalReading('offline')}
               disabled={isGeneratingAI}
               className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs border border-white/10 flex items-center gap-2 transition-all"
             >
               <Cpu className="w-4 h-4 text-neutral-300" /> Motor Interno
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} transition={softSpring}
               onClick={() => handleGenerateNatalReading('gemini')}
               disabled={isGeneratingAI}
               className="px-4 py-2 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs flex items-center gap-2 transition-all"
@@ -346,15 +335,15 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
               ) : (
                 <><Bot className="w-4 h-4" /> Gemini IA</>
               )}
-            </button>
+            </motion.button>
           </div>
         </div>
 
         {/* Big 3 Badges */}
         <div className="flex flex-wrap items-center gap-2 mt-5">
           {[
-            { label: '☉ Sol', value: `${chart.sunSymbol} ${sunPlanet?.signPt || chart.sunSign}` },
-            { label: '☽ Lua', value: `${chart.moonSymbol} ${moonPlanet?.signPt || chart.moonSign}` },
+            { label: '☉ Sol', value: `${chart.sunSymbol} ${fullChart?.tropical[0]?.signPt || chart.sunSign}` },
+            { label: '☽ Lua', value: `${chart.moonSymbol} ${fullChart?.tropical[1]?.signPt || chart.moonSign}` },
             { label: '↑ Ascendente', value: `${chart.risingSymbol} ${fullChart?.ascendantSignPt || chart.risingSign}` },
             ...(fullChart ? [{ label: 'MC (Meio do Céu)', value: `${fullChart.midheavenSymbol} ${fullChart.midheavenSignPt}` }] : []),
           ].map(b => (
@@ -370,11 +359,17 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
             </div>
           )}
         </div>
-      </div>
+      </motion.section>
 
       {/* AI Reading Synthesis */}
+      <AnimatePresence mode="wait">
       {aiReading && (
-        <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10 space-y-3 animate-fadeIn">
+        <motion.section
+          key="ai-reading"
+          variants={fadeUp}
+          initial="hidden" animate="show" exit={{ opacity: 0, y: -10 }}
+          className="bg-[#17141e]/95 rounded-[30px] p-6 sm:p-8 border border-white/[0.08] space-y-3 shadow-[0_20px_60px_rgba(0,0,0,0.2)]"
+        >
           <div className="flex items-center justify-between text-white font-bold text-sm">
             <span className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-white" /> Síntese do Mapa Astral
@@ -386,14 +381,15 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           <div className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap bg-black/50 p-5 rounded-2xl border border-white/10">
             {aiReading}
           </div>
-        </div>
+        </motion.section>
       )}
+      </AnimatePresence>
 
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Form + Controls */}
         <div className="lg:col-span-5 space-y-5">
-          <div className="bg-[#1c1c1e] rounded-3xl p-6 border border-white/10 space-y-4">
+          <div className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-6 border border-white/[0.08] space-y-4 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Compass className="w-4 h-4 text-white" /> Dados de Nascimento Exatos
             </h2>
@@ -438,7 +434,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-neutral-400 mb-1 font-medium text-[11px]">Fuso UTC (Histórico)</label>
+                  <label className="block text-neutral-400 mb-1 font-medium text-[11px]">Fuso UTC</label>
                   <input
                     type="number"
                     value={utcOffset}
@@ -475,15 +471,16 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
                 </div>
               </div>
 
-              <button type="submit"
-                className="w-full py-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all mt-2 shadow-sm">
+              <motion.button type="submit"
+                whileHover={{ y: -2, scale: 1.005 }} whileTap={{ scale: 0.985 }} transition={softSpring}
+                className="w-full py-3.5 rounded-[16px] bg-[#f6f0e8] hover:bg-white text-[#15121b] font-semibold text-xs transition-colors mt-2 shadow-[0_10px_30px_rgba(246,240,232,0.12)]">
                 Recalcular Mapa Astral
-              </button>
+              </motion.button>
             </form>
           </div>
 
           {/* Elements Distribution */}
-          <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-4">
+          <div className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-5 border border-white/[0.08] space-y-4 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
             <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               Distribuição dos Elementos
             </h3>
@@ -512,33 +509,42 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
         <div className="lg:col-span-7 space-y-5">
           {/* Wheel Visual */}
           {fullChart && (
-            <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10">
+            <motion.section variants={fadeUp} className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(145,119,214,0.12),transparent_48%),#17141e] rounded-[34px] p-5 sm:p-7 border border-white/[0.08] shadow-[0_26px_80px_rgba(0,0,0,0.24)]">
               <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 text-center">
                 Roda Zodiacal — Alinhamento Padrão Astro.com (ASC a Oeste/Esquerda)
               </h2>
               <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto">
                 <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} cusps={fullChart.houseCusps} />
               </div>
-            </div>
+            </motion.section>
           )}
 
           {/* Tab Selector */}
-          <div className="flex items-center gap-2 bg-[#1c1c1e] rounded-2xl p-2 border border-white/10">
+          <motion.div variants={fadeUp} className="flex items-center gap-1.5 bg-[#17141e]/90 rounded-[22px] p-1.5 border border-white/[0.08] backdrop-blur-xl">
             {tabs.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-white text-black'
-                    : 'text-neutral-400 hover:text-white'
-                }`}>
-                {tab.emoji} {tab.label}
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-[16px] text-xs font-semibold transition-colors ${
+                  activeTab === tab.id ? 'text-[#15121b]' : 'text-[#aaa3b3] hover:text-white'
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <motion.span
+                    layoutId="active-chart-tab"
+                    className="absolute inset-0 rounded-[16px] bg-[#f4eee6]"
+                    transition={softSpring}
+                  />
+                )}
+                <span className="relative z-10 truncate">{tab.emoji} {tab.label}</span>
               </button>
             ))}
-          </div>
+          </motion.div>
 
+          <AnimatePresence mode="wait">
           {/* Tropical Tab */}
           {activeTab === 'tropical' && fullChart && (
-            <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-4">
+            <motion.section key="tropical" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: EASE }} className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-5 border border-white/[0.08] shadow-[0_18px_55px_rgba(0,0,0,0.18)] space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-white" />
@@ -546,15 +552,15 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
                 </div>
                 <span className="text-[11px] text-neutral-400">Sistema: {houseSystem}</span>
               </div>
-              <div className="space-y-1.5">
+              <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-1.5">
                 {fullChart.tropical.map(renderPlanetRow)}
-              </div>
-            </div>
+              </motion.div>
+            </motion.section>
           )}
 
           {/* Vedic Tab */}
           {activeTab === 'vedic' && fullChart && (
-            <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-4">
+            <motion.section key="vedic" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: EASE }} className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-5 border border-white/[0.08] shadow-[0_18px_55px_rgba(0,0,0,0.18)] space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🕉️</span>
@@ -564,15 +570,15 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
                   </div>
                 </div>
               </div>
-              <div className="space-y-1.5">
+              <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-1.5">
                 {fullChart.vedic.map(renderVedicRow)}
-              </div>
-            </div>
+              </motion.div>
+            </motion.section>
           )}
 
           {/* Aspects Tab */}
           {activeTab === 'aspects' && (
-            <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-3">
+            <motion.section key="aspects" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: EASE }} className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-5 border border-white/[0.08] shadow-[0_18px_55px_rgba(0,0,0,0.18)] space-y-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">⭐</span>
@@ -615,12 +621,12 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.section>
           )}
 
           {/* Houses Tab */}
           {activeTab === 'houses' && fullChart && (
-            <div className="bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 space-y-3">
+            <motion.section key="houses" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.3, ease: EASE }} className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-5 border border-white/[0.08] shadow-[0_18px_55px_rgba(0,0,0,0.18)] space-y-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Grid3x3 className="w-4 h-4 text-white" />
@@ -650,28 +656,31 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
                   );
                 })}
               </div>
-            </div>
+            </motion.section>
           )}
+
+          </AnimatePresence>
 
           {/* Big 3 Descriptions */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { label: 'Sol ☉', sign: sunPlanet?.signPt || chart.sunSign, symbol: chart.sunSymbol, desc: sunDesc },
-              { label: 'Lua ☽', sign: moonPlanet?.signPt || chart.moonSign, symbol: chart.moonSymbol, desc: moonDesc },
+              { label: 'Sol ☉', sign: fullChart?.tropical[0]?.signPt || chart.sunSign, symbol: chart.sunSymbol, desc: sunDesc },
+              { label: 'Lua ☽', sign: fullChart?.tropical[1]?.signPt || chart.moonSign, symbol: chart.moonSymbol, desc: moonDesc },
               { label: 'Ascendente ↑', sign: fullChart?.ascendantSignPt || chart.risingSign, symbol: chart.risingSymbol, desc: risingDesc },
             ].map(({ label, sign, symbol, desc }) => (
-              <div key={label} className="bg-[#1c1c1e] rounded-2xl p-4 border border-white/10 space-y-1">
+              <motion.div key={label} whileHover={{ y: -4 }} transition={softSpring} className="bg-[#17141e]/92 rounded-[24px] p-4 border border-white/[0.08] shadow-[0_14px_40px_rgba(0,0,0,0.16)] space-y-1">
                 <div className="text-[11px] text-neutral-400 font-semibold uppercase">{label}</div>
                 <div className="text-base font-bold text-white">{symbol} {sign}</div>
                 <p className="text-xs text-neutral-400 leading-relaxed mt-1">
                   {lang === 'pt-BR' ? desc.pt : desc.en}
                 </p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
+    </MotionConfig>
   );
 };
 

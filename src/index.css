@@ -2,22 +2,27 @@
 
 @layer base {
   :root {
-    --bg-system:    #000000;
-    --card-system:  rgba(28, 28, 30, 0.65);
-    --card-border:  rgba(255, 255, 255, 0.08);
-    --text-primary: #ffffff;
-    --text-secondary: #8e8e93;
-    --text-tertiary:  #636366;
+    --bg-system:      #030305;
+    --card-system:    rgba(18, 18, 22, 0.70);
+    --card-border:    rgba(255, 215, 0, 0.12);
+    --text-primary:   #ffffff;
+    --text-secondary: #94a3b8;
+    --text-tertiary:  #64748b;
   }
 
   html {
     scroll-behavior: smooth;
-    background-color: #000000;
+    background-color: #030305;
     color: #ffffff;
   }
 
   body {
-    background-color: #000000;
+    background-color: #030305;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(120, 80, 255, 0.08) 0%, transparent 60%),
+      radial-gradient(circle at 80% 40%, rgba(212, 175, 55, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 10% 80%, rgba(147, 51, 234, 0.06) 0%, transparent 50%);
+    background-attachment: fixed;
     color: #ffffff;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display",
       "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -30,7 +35,7 @@
 
   #root {
     min-height: 100vh;
-    background-color: #000000;
+    background-color: transparent;
     color: #ffffff;
   }
 
@@ -40,34 +45,43 @@
   button, [role="button"] { -webkit-tap-highlight-color: transparent; }
 }
 
-/* ── Glass panels ────────────────────────────────────────────────────────── */
+/* ── Moonly Glass Panels ─────────────────────────────────────────────────── */
 .glass-panel {
-  background: rgba(28, 28, 30, 0.60);
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  background: rgba(18, 18, 24, 0.65);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.glass-panel-moonly {
+  background: linear-gradient(135deg, rgba(25, 22, 38, 0.75) 0%, rgba(12, 12, 18, 0.85) 100%);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(212, 175, 55, 0.20);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 235, 175, 0.15);
 }
 
 .glass-panel-gold {
-  background: rgba(36, 32, 20, 0.70);
+  background: linear-gradient(135deg, rgba(42, 35, 18, 0.70) 0%, rgba(20, 16, 8, 0.85) 100%);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 214, 10, 0.20);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(245, 158, 11, 0.30);
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(254, 243, 199, 0.2);
 }
 
 .glass-panel-glow {
-  background: rgba(28, 28, 30, 0.70);
+  background: rgba(22, 20, 32, 0.75);
   backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.15);
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 4px; height: 4px; }
-::-webkit-scrollbar-track  { background: #000; }
-::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.15); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.30); }
+::-webkit-scrollbar-track  { background: #030305; }
+::-webkit-scrollbar-thumb  { background: rgba(212, 175, 55, 0.25); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(212, 175, 55, 0.50); }
 
 /* Hide scrollbar but keep scroll for horizontal nav */
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -83,8 +97,8 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.6; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(1.03); }
 }
 @keyframes shimmer {
   0%   { background-position: -200% center; }
@@ -93,7 +107,7 @@
 
 .animate-fadeIn   { animation: fadeIn   0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-slideUp  { animation: slideUp  0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-pulse-soft { animation: pulse-soft 2.5s ease-in-out infinite; }
+.animate-pulse-soft { animation: pulse-soft 3.5s ease-in-out infinite; }
 
 /* ── Micro-interactions ─────────────────────────────────────────────────── */
 button:active:not(:disabled) { transform: scale(0.97); }

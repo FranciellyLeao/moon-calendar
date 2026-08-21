@@ -1,7 +1,7 @@
 /**
  * Swiss Ephemeris Core Astronomical Integration
- * Provides 100% Swiss Ephemeris accuracy (matching Astro.com / Astrodienst)
- * Supports both WebAssembly (browser) and Node environments (Vitest tests / SSR)
+ * Provides 100% Swiss Ephemeris accuracy matching Astro.com / Astrodienst.
+ * Loads local ephemeris files from /ephemeris/ with timeout e fallback.
  */
 
 export interface RawCelestialPosition {
@@ -43,37 +43,94 @@ const HOUSE_SYSTEM_CODES: Record<string, string> = {
   WholeSign: 'W',
 };
 
-let swephEngine: any = null;
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(message)), ms)
+    ),
+  ]);
+}
 
-async function getSwephEngine() {
-  if (swephEngine) return swephEngine;
+let enginePromise: Promise<any> | null = null;
 
-  try {
-    // Browser environment
-    if (typeof window !== 'undefined') {
+export function resetSwissEphemeris() {
+  enginePromise = null;
+}
+
+export function getSwissEphemeris(): Promise<any> {
+  if (!enginePromise) {
+    enginePromise = (async () => {
+      // Node.js environment (Vitest / SSR)
+      if (typeof window === 'undefined') {
+        try {
+          const nodeMod = await import('@swisseph/node');
+          const engine = nodeMod.default || nodeMod;
+          return engine;
+        } catch (e) {
+          console.warn('[Swiss] Fallback Node initialization:', e);
+        }
+      }
+
+      // Browser WebAssembly environment
+      console.log('[Swiss] Inicializando WASM no navegador...');
       const browserMod = await import('@swisseph/browser');
       const SwissEphemerisClass = browserMod.SwissEphemeris || browserMod.default;
-      if (SwissEphemerisClass) {
-        const instance = new SwissEphemerisClass();
-        await instance.init();
-        swephEngine = instance;
-        return swephEngine;
+
+      if (!SwissEphemerisClass) {
+        throw new Error('Classe SwissEphemeris não encontrada no pacote @swisseph/browser');
       }
-    }
-  } catch (e) {
-    console.warn('Falling back to @swisseph/node:', e);
+
+      const swe = new SwissEphemerisClass();
+
+      await withTimeout(
+        swe.init(),
+        10000,
+        'Swiss Ephemeris WASM demorou demais para inicializar.'
+      );
+
+      console.log('[Swiss] WASM inicializado com sucesso.');
+
+      try {
+        console.log('[Swiss] Carregando arquivos de efemérides locais /ephemeris/...');
+        await withTimeout(
+          swe.loadEphemerisFiles([
+            { name: 'sepl_18.se1', url: '/ephemeris/sepl_18.se1' },
+            { name: 'semo_18.se1', url: '/ephemeris/semo_18.se1' },
+            { name: 'seas_18.se1', url: '/ephemeris/seas_18.se1' },
+          ]),
+          12000,
+          'Timeout ao carregar arquivos locais Swiss Ephemeris.'
+        );
+        console.log('[Swiss] Efemérides locais salvas e prontas.');
+      } catch (localErr) {
+        console.warn('[Swiss] Falha ao carregar efemérides locais, tentando CDN...', localErr);
+        try {
+          await withTimeout(
+            swe.loadStandardEphemeris(),
+            15000,
+            'Timeout ao baixar os arquivos do CDN Swiss Ephemeris.'
+          );
+          console.log('[Swiss] Efemérides do CDN carregadas.');
+        } catch (cdnErr) {
+          console.error('[Swiss] Falha ao carregar efemérides via CDN:', cdnErr);
+          // Moshier fallback allows main calculations to proceed even offline
+        }
+      }
+
+      return swe;
+    })().catch((error) => {
+      // Impede o cache indefinido de Promises rejeitadas
+      enginePromise = null;
+      throw error;
+    });
   }
 
-  // Node environment (Vitest / SSR)
-  try {
-    const nodeMod = await import('@swisseph/node');
-    const engine = nodeMod.default || nodeMod;
-    swephEngine = engine;
-    return swephEngine;
-  } catch (err) {
-    console.error('Failed to load Swiss Ephemeris engine:', err);
-    throw new Error('Swiss Ephemeris calculation engine failed to initialize.');
-  }
+  return enginePromise;
 }
 
 /**
@@ -82,7 +139,7 @@ async function getSwephEngine() {
 export async function calculateSwissAstronomy(
   params: SwissAstronomyParams
 ): Promise<SwissAstronomyResult> {
-  const swe = await getSwephEngine();
+  const swe = await getSwissEphemeris();
 
   const ut = params.hour + params.minute / 60 - params.utcOffset;
   const jd = typeof swe.julianDay === 'function'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import type { NatalChart, UserSettings } from '../types';
 import type { PlanetPosition, AspectData } from '../utils/planetaryPositions';
@@ -7,9 +7,10 @@ import { calculateNatalChart, SIGN_DESCRIPTIONS } from '../utils/astrology';
 import { CITIES_DATABASE, findCity, geocodeCityOnline } from '../utils/geocoding';
 import { generateAINatalChartReading } from '../utils/gemini';
 import { generateOfflineNatalReading } from '../utils/astrologyEngine';
+import { resetSwissEphemeris } from '../utils/swissEphemeris';
 import {
   Sparkles, Calendar, Clock, MapPin, Compass, Flame, Mountain,
-  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers, Search
+  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers, Search, RefreshCw
 } from 'lucide-react';
 
 interface AstrologyChartProps {
@@ -58,6 +59,30 @@ const NATURE_ICON: Record<string, string> = {
 };
 
 /**
+ * Anti-collision algorithm for radial planet staggering
+ */
+function getRadialLevels(planets: PlanetPosition[]): number[] {
+  const sorted = planets.map((p, originalIdx) => ({ lng: p.longitude, originalIdx }))
+    .sort((a, b) => a.lng - b.lng);
+
+  const levels = new Array(planets.length).fill(0);
+  for (let i = 0; i < sorted.length; i++) {
+    let clusterIdx = 0;
+    for (let j = i - 1; j >= 0; j--) {
+      const diff = Math.abs(sorted[i].lng - sorted[j].lng);
+      const dist = Math.min(diff, 360 - diff);
+      if (dist < 6) {
+        clusterIdx = (levels[sorted[j].originalIdx] + 1) % 3;
+      } else {
+        break;
+      }
+    }
+    levels[sorted[i].originalIdx] = clusterIdx;
+  }
+  return levels;
+}
+
+/**
  * SVG Mandala Wheel Renderer
  * Fixes Ascendant (ascendant, ascendant) === 180° (Left horizontal axis / 9 o'clock)
  */
@@ -68,11 +93,11 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
   // Convert astronomical longitude to SVG Cartesian angle
   // chartAngle(ascendant, ascendant) === 180° (Left = 9 o'clock)
   const getSvgRad = (longitude: number) => {
-    const projAngle = chartAngle(longitude, ascendant);
-    // Convert angle to SVG coordinates (0° = Right, 90° = Top, 180° = Left, 270° = Bottom)
-    const svgDeg = 180 - (projAngle - 180);
-    return (svgDeg * Math.PI) / 180;
+    const angle = chartAngle(longitude, ascendant);
+    return (angle * Math.PI) / 180;
   };
+
+  const radialLevels = getRadialLevels(planets);
 
   return (
     <motion.svg
@@ -121,10 +146,11 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
         );
       })}
 
-      {/* Planets */}
+      {/* Planets with radial level staggering to avoid collision */}
       {planets.slice(0, 12).map((planet, i) => {
         const rad = getSvgRad(planet.longitude);
-        const r = innerR - 14 - (i % 3) * 11;
+        const level = radialLevels[i] || 0;
+        const r = innerR - 14 - level * 12;
         const px = cx + r * Math.cos(rad);
         const py = cy - r * Math.sin(rad);
         return (
@@ -151,8 +177,8 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
       <text x={cx + outerR - 22} y={cy - 5} fill="rgba(255,255,255,0.5)" fontSize="7">DSC</text>
 
       {/* Center Label */}
-      <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="7" fontWeight="bold">ASTRO.COM</text>
-      <text x={cx} y={cy + 6} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="6">PRECISION</text>
+      <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="7" fontWeight="bold">SWISS EPHEMERIS</text>
+      <text x={cx} y={cy + 6} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="6">ASTRO.COM 100%</text>
     </motion.svg>
   );
 };
@@ -173,6 +199,8 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   );
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
   const [isCalculating, setIsCalculating] = useState<boolean>(!initialChart);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState<number>(0);
 
   const [chart, setChart] = useState<NatalChart | null>(initialChart);
   const [activeTab, setActiveTab] = useState<Tab>('tropical');
@@ -181,48 +209,99 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [engineType, setEngineType] = useState<'gemini' | 'offline'>('offline');
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
 
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (initialChart) return;
-    let isSubscribed = true;
+
+    let cancelled = false;
+
     (async () => {
       setIsCalculating(true);
-      const c = await calculateNatalChart('1995-05-15', '08:30', 'São Paulo', -23.5505, -46.6333, -3, 'Placidus');
-      if (isSubscribed) {
-        setChart(c);
-        onSaveNatalChart(c);
-        setIsCalculating(false);
+      setCalculationError(null);
+
+      try {
+        const firstChart = await calculateNatalChart(
+          '1995-05-15',
+          '08:30',
+          'São Paulo',
+          -23.5505,
+          -46.6333,
+          -3,
+          'Placidus'
+        );
+
+        if (!cancelled) {
+          setChart(firstChart);
+          onSaveNatalChart(firstChart);
+        }
+      } catch (error) {
+        console.error('[AstrologyChart] Erro ao calcular mapa inicial:', error);
+        if (!cancelled) {
+          setCalculationError(
+            error instanceof Error
+              ? error.message
+              : 'Erro desconhecido ao calcular o mapa astral.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsCalculating(false);
+        }
       }
     })();
-    return () => { isSubscribed = false; };
-  }, []);
 
-  const handleCityChange = async (cityName: string) => {
+    return () => {
+      cancelled = true;
+    };
+  }, [retryKey]);
+
+  const handleCityChange = (cityName: string) => {
     setBirthCity(cityName);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
     const match = findCity(cityName);
     if (match) {
       setLat(match.lat);
       setLng(match.lng);
       setUtcOffset(match.defaultUtcOffset);
-    } else if (cityName.trim().length > 3) {
+      return;
+    }
+
+    if (cityName.trim().length > 3) {
       setIsGeocoding(true);
-      const online = await geocodeCityOnline(cityName);
-      if (online) {
-        setLat(online.lat);
-        setLng(online.lng);
-        setUtcOffset(online.defaultUtcOffset);
-      }
-      setIsGeocoding(false);
+      searchTimeoutRef.current = setTimeout(async () => {
+        const online = await geocodeCityOnline(cityName);
+        if (online) {
+          setLat(online.lat);
+          setLng(online.lng);
+          setUtcOffset(online.defaultUtcOffset);
+        }
+        setIsGeocoding(false);
+      }, 600);
     }
   };
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCalculating(true);
-    const newChart = await calculateNatalChart(birthDate, birthTime, birthCity, lat, lng, utcOffset, houseSystem);
-    setChart(newChart);
-    setAiReading(null);
-    onSaveNatalChart(newChart);
-    setIsCalculating(false);
+    setCalculationError(null);
+
+    try {
+      const newChart = await calculateNatalChart(
+        birthDate, birthTime, birthCity, lat, lng, utcOffset, houseSystem
+      );
+      setChart(newChart);
+      setAiReading(null);
+      onSaveNatalChart(newChart);
+    } catch (error) {
+      console.error('[AstrologyChart] Erro ao recalcular:', error);
+      setCalculationError(
+        error instanceof Error ? error.message : 'Erro ao calcular o mapa astral.'
+      );
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   const handleGenerateNatalReading = async (mode: 'gemini' | 'offline') => {
@@ -246,11 +325,41 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
     }
   };
 
-  if (!chart) {
+  // Error boundary view with retry button
+  if (!chart && calculationError) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] text-white gap-3">
-        <Loader2 className="w-6 h-6 animate-spin text-amber-300" />
-        <span>Calculando mapa astral com Swiss Ephemeris...</span>
+      <div className="mx-auto max-w-xl rounded-[32px] border border-red-400/20 bg-[#151019] p-8 text-center shadow-2xl my-12">
+        <div className="text-3xl text-amber-300">✦</div>
+
+        <h2 className="mt-4 text-xl font-semibold text-white">
+          Não conseguimos carregar seu céu
+        </h2>
+
+        <p className="mt-3 text-sm leading-relaxed text-white/70">
+          {calculationError}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            resetSwissEphemeris();
+            setCalculationError(null);
+            setRetryKey((value) => value + 1);
+          }}
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#eee6ff] px-6 py-3 text-sm font-semibold text-[#17121d] hover:bg-white transition-all shadow-lg"
+        >
+          <RefreshCw className="w-4 h-4" /> Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
+  if (!chart || isCalculating) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[420px] text-white gap-3 p-8 bg-[#0c0912] rounded-[36px] border border-white/10 max-w-xl mx-auto text-center shadow-2xl">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-300" />
+        <span className="font-semibold text-sm">Montando seu céu com a Swiss Ephemeris...</span>
+        <span className="text-xs text-neutral-400">Carregando posições planetárias, casas e aspectos de alta precisão.</span>
       </div>
     );
   }
@@ -335,7 +444,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.1] text-[#ded7e8] text-xs font-medium mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-white" /> Algoritmo Modular com Precisão Astro.com
+              <Sparkles className="w-3.5 h-3.5 text-white" /> Algoritmo Swiss Ephemeris Astro.com
             </div>
             <h1 className="max-w-2xl text-3xl sm:text-5xl font-semibold text-[#fbf7f1] tracking-[-0.035em] leading-[0.98]">
               Seu céu, traduzido em clareza

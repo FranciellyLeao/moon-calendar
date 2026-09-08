@@ -53,6 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   // Secondary tools in the "Mais" dropdown
   const secondaryNavItems = [
+    { id: 'biorhythm', label: 'Biorritmo Védico', icon: HeartPulse, category: 'Astrologia' },
     { id: 'transits', label: 'Trânsitos Planetários', icon: Compass, category: 'Astrologia' },
     { id: 'synastry', label: 'Sinastria de Casal', icon: HeartHandshake, category: 'Astrologia' },
     { id: 'intentions', label: t('tabIntentions', lang), icon: Target, category: 'Práticas' },

@@ -11,6 +11,7 @@ import { AstrologyChart } from './components/AstrologyChart';
 import { SynastryChart } from './components/SynastryChart';
 import { DailyHoroscope } from './components/DailyHoroscope';
 import { LunarJournal } from './components/LunarJournal';
+import { VedicBiorhythmView } from './components/VedicBiorhythm';
 import { IntentionsTracker } from './components/IntentionsTracker';
 import { RitualsLibrary } from './components/RitualsLibrary';
 import { CycleTracker } from './components/CycleTracker';
@@ -109,6 +110,10 @@ export function App() {
 
             {activeTab === 'journal' && (
               <LunarJournal settings={settings} astroData={astroData} />
+            )}
+
+            {activeTab === 'biorhythm' && (
+              <VedicBiorhythmView settings={settings} astroData={astroData} />
             )}
 
             {activeTab === 'intentions' && (

@@ -28,11 +28,11 @@ export function toSiderealLongitude(tropicalLng: number, ayanamsha: number): num
   return normalizeDegrees(tropicalLng - ayanamsha);
 }
 
-/** Get Nakshatra name, planetary ruler, and Pada (1-4) for a given sidereal or tropical longitude */
-export function getNakshatraInfo(longitude: number): { name: string; ruler: string; pada: number } {
+/** Get Nakshatra name, planetary ruler, Pada (1-4) and index (0-26) */
+export function getNakshatraInfo(longitude: number): { name: string; ruler: string; pada: number; index: number } {
   const norm = normalizeDegrees(longitude);
   const span = 360 / 27;
   const idx  = Math.floor(norm / span) % 27;
   const pada = Math.min(4, Math.floor((norm % span) / (span / 4)) + 1);
-  return { name: NAKSHATRA_NAMES[idx], ruler: NAKSHATRA_RULERS[idx], pada };
+  return { name: NAKSHATRA_NAMES[idx], ruler: NAKSHATRA_RULERS[idx], pada, index: idx };
 }

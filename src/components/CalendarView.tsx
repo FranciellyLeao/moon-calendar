@@ -3,8 +3,9 @@ import type { UserSettings } from '../types';
 import { t } from '../utils/i18n';
 import { getMoonPhaseName, getMoonZodiacSign } from '../utils/astronomy';
 import { getDayActivityGuide, type ActivityCategory } from '../utils/activityTiming';
+import { calcFullVedicBiorhythm } from '../utils/vedicBiorhythm';
 import * as SunCalc from 'suncalc';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Activity, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface CalendarViewProps {
@@ -35,6 +36,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
   const [currentDate, setCurrentDate] = useState(new Date());
   const [filterPhase, setFilterPhase] = useState<'all' | 'new' | 'quarter' | 'full'>('all');
   const [activityFilter, setActivityFilter] = useState<ActivityCategory | 'all'>('all');
+  const [showVedicBiorhythm, setShowVedicBiorhythm] = useState<boolean>(true);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -47,6 +49,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
   const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   const handleToday = () => setCurrentDate(new Date());
 
+  const birthDate = new Date(settings.natalChart?.birthDate || '1995-05-15');
+
   // Pre-compute month data
   const monthData = useMemo(() => {
     const data: Array<{
@@ -56,6 +60,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
       isVoidOfCourse: boolean;
       phaseName: string;
       activityGuide: ReturnType<typeof getDayActivityGuide>;
+      vedicBio: ReturnType<typeof calcFullVedicBiorhythm>;
     }> = [];
 
     for (let d = 1; d <= daysInMonth; d++) {
@@ -75,6 +80,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
       else if (phaseInfo.code === 'waning_crescent') symbol = '🌘';
 
       const activityGuide = getDayActivityGuide(dateObj, phaseInfo.name, zodiac.name, zodiac.symbol, isVoc);
+      const vedicBio = calcFullVedicBiorhythm(birthDate, dateObj, illum.fraction * 360);
 
       data.push({
         moon: { symbol, phaseCode: phaseInfo.code, fractionPct: Math.round(illum.fraction * 100) },
@@ -83,11 +89,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
         isVoidOfCourse: isVoc,
         phaseName: phaseInfo.name,
         activityGuide,
+        vedicBio,
       });
     }
 
     return data;
-  }, [year, month, daysInMonth]);
+  }, [year, month, daysInMonth, birthDate]);
 
   const todayStr = new Date().toDateString();
 
@@ -105,23 +112,34 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
   }, [activityFilter, monthData]);
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
+    <div className="space-y-5 max-w-5xl mx-auto text-[#F3F4F6]">
       {/* Sleek Header & Controls */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#1c1c1e] rounded-3xl p-4 sm:p-5 border border-white/10 flex flex-wrap items-center justify-between gap-4"
+        className="bg-[#121218]/90 backdrop-blur-xl rounded-[28px] p-4 sm:p-5 border border-white/10 flex flex-wrap items-center justify-between gap-4 shadow-xl"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-white/5 text-white border border-white/10">
+          <div className="p-2.5 rounded-2xl bg-amber-400/10 text-amber-300 border border-amber-400/20">
             <CalendarIcon className="w-4 h-4" />
           </div>
-          <h2 className="text-lg font-bold text-white tracking-tight">
+          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
             {currentDate.toLocaleDateString(lang, { month: 'long', year: 'numeric' })}
           </h2>
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowVedicBiorhythm(!showVedicBiorhythm)}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+              showVedicBiorhythm
+                ? 'bg-amber-400/20 text-amber-200 border-amber-400/35 shadow-[0_0_12px_rgba(251,191,36,0.15)]'
+                : 'bg-white/5 text-neutral-400 border-white/10 hover:text-white'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Biorritmo Védico</span>
+          </button>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -154,9 +172,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="bg-[#1c1c1e] rounded-2xl p-3 border border-white/10 space-y-3"
+        className="bg-[#121218]/90 backdrop-blur-xl rounded-[24px] p-4 border border-white/10 space-y-3 shadow-lg"
       >
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           <span className="text-neutral-400 text-xs font-medium whitespace-nowrap mr-1">
             Filtro de Atividade:
           </span>
@@ -166,8 +184,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
               onClick={() => setActivityFilter(f.id as ActivityCategory | 'all')}
               className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border ${
                 activityFilter === f.id
-                  ? 'bg-white text-black border-white font-semibold'
-                  : 'bg-white/5 text-neutral-400 hover:text-white border-white/5'
+                  ? 'bg-gradient-to-r from-[#fbe396] to-[#e5c158] text-[#15111b] border-amber-300 font-bold shadow-md'
+                  : 'bg-white/5 text-neutral-300 hover:text-white border-white/5'
               }`}
             >
               {f.emoji} {f.label}
@@ -175,7 +193,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
           ))}
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 border-t border-white/5">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pt-1 border-t border-white/5">
           <span className="text-neutral-400 text-xs font-medium whitespace-nowrap mr-1">
             Fase da Lua:
           </span>
@@ -232,6 +250,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             ? dayData.activityGuide.activities.find(a => a.category === activityFilter)
             : null;
 
+          const taraBala = dayData.vedicBio.taraBala;
+
           return (
             <motion.div
               key={dayNum}
@@ -240,29 +260,39 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
               whileTap={{ scale: 0.96 }}
               className={`h-20 sm:h-24 rounded-2xl p-2 flex flex-col justify-between cursor-pointer transition-all duration-200 relative border ${
                 isToday
-                  ? 'bg-white/10 border-white/40 ring-1 ring-white/30'
+                  ? 'bg-amber-300/15 border-amber-300/50 ring-1 ring-amber-300/30'
                   : isBestDay && activityFilter !== 'all'
                   ? 'bg-green-500/10 border-green-500/40 hover:border-green-500/60'
                   : isMatchFilter
-                  ? 'bg-[#1c1c1e] hover:bg-white/10 border-white/10'
-                  : 'bg-[#1c1c1e] opacity-25 hover:opacity-60 border-white/5'
+                  ? 'bg-[#121218]/90 hover:bg-white/10 border-white/10'
+                  : 'bg-[#121218]/50 opacity-25 hover:opacity-60 border-white/5'
               }`}
             >
               {/* Header inside cell */}
               <div className="flex items-center justify-between">
                 <span
                   className={`text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ${
-                    isToday ? 'bg-white text-black' : 'text-neutral-300'
+                    isToday ? 'bg-amber-300 text-[#15111b]' : 'text-neutral-300'
                   }`}
                 >
                   {dayNum}
                 </span>
 
-                {actScore && (
+                {showVedicBiorhythm ? (
+                  <span
+                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                      taraBala.type === 'favorable'
+                        ? 'bg-emerald-400/20 text-emerald-300'
+                        : taraBala.type === 'challenging'
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-white/10 text-neutral-400'
+                    }`}
+                  >
+                    {taraBala.name.split(' ')[0]}
+                  </span>
+                ) : actScore ? (
                   <div className={`w-2 h-2 rounded-full ${RATING_DOT[actScore.rating]}`} />
-                )}
-
-                {!actScore && (
+                ) : (
                   <span className="text-[9px] text-neutral-500">
                     {moon.fractionPct}%
                   </span>
@@ -279,8 +309,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
               {/* Footer inside cell */}
               <div className="flex items-center justify-between text-[9px] text-neutral-400">
                 <span>{dayData.moonSignSymbol}</span>
-                {dayData.isVoidOfCourse && (
+                {dayData.isVoidOfCourse ? (
                   <span className="text-orange-400 font-bold">VoC</span>
+                ) : (
+                  <span className="text-[9px] text-amber-200/80 font-semibold">{dayData.vedicBio.biorhythmScores.overallScore}%</span>
                 )}
               </div>
             </motion.div>
@@ -288,24 +320,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
         })}
       </div>
 
-      {/* Simplified Legend */}
+      {/* Legend */}
       <div className="flex flex-wrap items-center justify-between text-[11px] text-neutral-400 px-2 pt-1">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-400" /> Excelente
+            <span className="w-2 h-2 rounded-full bg-emerald-400" /> Tara Bala Favorável
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-400" /> Bom
+            <span className="w-2 h-2 rounded-full bg-amber-400" /> Tara Bala Cautela
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-neutral-500" /> Neutro
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-400" /> Desafiador
+            <span className="w-2 h-2 rounded-full bg-neutral-400" /> Neutro
           </span>
         </div>
-        <div className="text-orange-400 font-medium">
-          VoC: Lua Vazia de Curso
+        <div className="text-amber-300 font-semibold flex items-center gap-1">
+          <Sparkles className="w-3 h-3 text-amber-300" /> Clique no dia para abrir o relatório completo de Biorritmo Védico
         </div>
       </div>
     </div>

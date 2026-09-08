@@ -2,7 +2,8 @@ import React from 'react';
 import type { UserSettings } from '../types';
 import { getAstronomyData, getMoonZodiacSign } from '../utils/astronomy';
 import { getDayActivityGuide } from '../utils/activityTiming';
-import { Moon, Sunrise, Sunset, X, Zap } from 'lucide-react';
+import { calcFullVedicBiorhythm } from '../utils/vedicBiorhythm';
+import { Moon, Sunrise, Sunset, X, Zap, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DayDetailsModalProps {
@@ -42,6 +43,10 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({ date, settings
     astroData.isVoidOfCourse
   );
 
+  const birthDate = new Date(settings.natalChart?.birthDate || '1995-05-15');
+  const moonSiderealLng = astroData.illumination * 3.6;
+  const vedicBio = calcFullVedicBiorhythm(birthDate, date, moonSiderealLng);
+
   const phasePt = PHASE_NAMES_PT[astroData.phaseName] || astroData.phaseName;
   const top4 = guide.activities.slice(0, 4);
 
@@ -68,7 +73,7 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({ date, settings
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className="bg-[#1c1c1e] rounded-t-3xl sm:rounded-3xl p-5 sm:p-7 w-full sm:max-w-lg space-y-5 border border-white/10 relative max-h-[92vh] overflow-y-auto shadow-2xl"
+          className="bg-[#121218] rounded-t-3xl sm:rounded-[28px] p-5 sm:p-7 w-full sm:max-w-lg space-y-5 border border-white/10 relative max-h-[92vh] overflow-y-auto shadow-2xl text-[#F3F4F6]"
         >
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -130,6 +135,37 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({ date, settings
             </div>
           )}
 
+          {/* NEW: Vedic Biorhythm & Panchang Card */}
+          <div className="p-4 rounded-2xl bg-amber-400/10 border border-amber-400/25 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-amber-300" /> Biorritmo Védico do Dia
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-200 font-bold">
+                {vedicBio.taraBala.name}
+              </span>
+            </div>
+
+            <div className="text-xs text-[#E5E7EB] leading-relaxed">
+              <strong className="text-white">{vedicBio.taraBala.namePt}:</strong> {vedicBio.taraBala.description}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/5">
+                <span className="text-[10px] text-neutral-400 block font-medium">Relógio Ayurvédico:</span>
+                <span className="font-bold text-white flex items-center gap-1 mt-0.5">
+                  {vedicBio.doshaRhythm.emoji} Fase {vedicBio.doshaRhythm.currentDosha}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-black/40 border border-white/5">
+                <span className="text-[10px] text-neutral-400 block font-medium">Físico / Emocional:</span>
+                <span className="font-bold text-amber-200 mt-0.5 block">
+                  F:{vedicBio.biorhythmScores.physical}% • E:{vedicBio.biorhythmScores.emotional}%
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Energy bar */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
@@ -143,7 +179,7 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({ date, settings
                 initial={{ width: 0 }}
                 animate={{ width: `${guide.overallEnergy}%` }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
-                className="h-full bg-white rounded-full"
+                className="h-full bg-gradient-to-r from-amber-300 to-amber-100 rounded-full"
               />
             </div>
           </div>

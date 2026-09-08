@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import type { AstronomyData, JournalEntry, UserSettings } from '../types';
 import { getStoredJournal, saveStoredJournal } from '../utils/storage';
-import { t } from '../utils/i18n';
-import { BookOpen, Plus, Search, Star, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
+import { BookOpen, Plus, Search, Star, Calendar as CalendarIcon, Trash2, X, Tag } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface LunarJournalProps {
   settings: UserSettings;
@@ -75,150 +75,169 @@ export const LunarJournal: React.FC<LunarJournalProps> = ({ settings, astroData 
   const allTags = Array.from(new Set(entries.flatMap((e) => e.tags)));
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6">
+    <div className="space-y-6 max-w-5xl mx-auto animate-fadeIn text-[#F3F4F6]">
+      {/* iOS HIG Floating Header (Sem caixa em volta, título flutuante) */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-2 pb-2">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300 text-xs font-medium mb-3">
-            <BookOpen className="w-3.5 h-3.5 text-white" /> {t('journalTitle', lang)}
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Diário de Reflexão Lunar
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight flex items-center gap-3">
+            <BookOpen className="w-7 h-7 text-amber-300" />
+            <span>Diário de Reflexão Lunar</span>
           </h1>
-          <p className="text-sm text-neutral-400 max-w-xl mt-1">
-            Registre suas reflexões diárias sincronizadas com as fases da lua.
+          <p className="text-sm text-[#A1A1AA] mt-1.5 max-w-xl font-normal leading-relaxed">
+            Registre suas intenções e reflexões diárias sincronizadas com as fases da Lua e posições astrológicas.
           </p>
         </div>
 
-        <button
+        {/* Translucent Glass CTA Button (HIG Style) */}
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => setIsFormOpen(!isFormOpen)}
-          className="px-5 py-2.5 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all flex items-center gap-2 shrink-0"
+          className="px-4 py-2.5 rounded-full bg-amber-300/15 hover:bg-amber-300/25 text-amber-200 border border-amber-300/30 backdrop-blur-md text-xs font-bold shadow-[0_0_15px_rgba(251,191,36,0.15)] flex items-center gap-2 transition-all shrink-0"
         >
-          <Plus className="w-4 h-4 text-black" />
-          {isFormOpen ? 'Fechar Form' : t('newEntry', lang)}
-        </button>
+          {isFormOpen ? <X className="w-4 h-4 text-amber-300" /> : <Plus className="w-4 h-4 text-amber-300" />}
+          <span>{isFormOpen ? 'Fechar Form' : 'Nova Reflexão'}</span>
+        </motion.button>
       </div>
 
       {/* Form Drawer */}
-      {isFormOpen && (
-        <form onSubmit={handleSaveEntry} className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10 space-y-4 animate-fadeIn text-xs">
-          <h2 className="text-base font-bold text-white mb-2">Nova Anotação Lunar</h2>
+      <AnimatePresence>
+        {isFormOpen && (
+          <motion.form
+            initial={{ opacity: 0, height: 0, y: -10 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            onSubmit={handleSaveEntry}
+            className="overflow-hidden bg-[#121218]/90 backdrop-blur-xl rounded-[28px] p-6 sm:p-7 border border-white/10 space-y-4 shadow-2xl text-xs"
+          >
+            <h2 className="text-base font-bold text-white mb-1 flex items-center gap-2">
+              <Star className="w-4 h-4 text-amber-300" /> Nova Anotação Lunar
+            </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[#A1A1AA] mb-1 font-medium">Título da Reflexão</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex: Minhas intenções para a Lua Nova..."
+                  className="w-full px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-300/50"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#A1A1AA] mb-1 font-medium">Tags (separadas por vírgula)</label>
+                <input
+                  type="text"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="ex: gratidão, trabalho, rituais"
+                  className="w-full px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-300/50"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-neutral-400 mb-1 font-medium">Título da Reflexão</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Minhas intenções para a Lua Nova..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white"
+              <label className="block text-[#A1A1AA] mb-1 font-medium">Sua Reflexão</label>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={4}
+                placeholder="Escreva livremente o que sente hoje..."
+                className="w-full px-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-300/50 resize-none"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-neutral-400 mb-1 font-medium">Tags (separadas por vírgula)</label>
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                placeholder="ex: gratidão, trabalho, rituais"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white"
-              />
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 font-semibold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-[#15111b] font-bold transition-colors"
+              >
+                Salvar Registro
+              </button>
             </div>
-          </div>
+          </motion.form>
+        )}
+      </AnimatePresence>
 
-          <div>
-            <label className="block text-neutral-400 mb-1 font-medium">Sua Reflexão</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={4}
-              placeholder="Escreva livremente o que sente hoje..."
-              className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white resize-none"
-              required
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setIsFormOpen(false)}
-              className="px-4 py-2 rounded-xl bg-white/5 text-neutral-300 border border-white/10"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold"
-            >
-              Salvar Registro
-            </button>
-          </div>
-        </form>
-      )}
-
-      {/* Search & Tag Filter Bar */}
-      <div className="bg-[#1c1c1e] rounded-2xl p-4 border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
+      {/* Floating Unboxed Search Bar & Deconstructed Filter Chips */}
+      <div className="space-y-3">
+        {/* Floating Standalone iOS Search Bar */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-neutral-400 absolute left-4 top-3.5" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar nas anotações..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/50 border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-white"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-[#1C1C1E] border border-white/10 text-white placeholder-neutral-500 focus:outline-none focus:border-amber-300/50 shadow-md text-xs sm:text-sm transition-all"
           />
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setSelectedTag(null)}
-            className={`px-3 py-1 rounded-lg text-[11px] font-medium transition-all ${
-              selectedTag === null
-                ? 'bg-white text-black font-semibold'
-                : 'bg-white/5 text-neutral-400 hover:text-white'
-            }`}
-          >
-            Todas
-          </button>
-          {allTags.map((tag) => (
+        {/* Free Floating Horizontal Scroll Filter Chips */}
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
             <button
-              key={tag}
-              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-              className={`px-3 py-1 rounded-lg text-[11px] font-medium transition-all ${
-                selectedTag === tag
-                  ? 'bg-white text-black font-semibold'
-                  : 'bg-white/5 text-neutral-400 hover:text-white'
+              onClick={() => setSelectedTag(null)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 flex-shrink-0 ${
+                selectedTag === null
+                  ? 'bg-gradient-to-r from-[#fbe396] to-[#e5c158] text-[#15111b] shadow-[0_0_12px_rgba(251,191,36,0.25)]'
+                  : 'bg-white/10 text-neutral-300 hover:text-white hover:bg-white/15'
               }`}
             >
-              #{tag}
+              <Tag className="w-3 h-3" />
+              <span>Todas</span>
             </button>
-          ))}
-        </div>
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
+                  selectedTag === tag
+                    ? 'bg-gradient-to-r from-[#fbe396] to-[#e5c158] text-[#15111b] font-bold shadow-[0_0_12px_rgba(251,191,36,0.25)]'
+                    : 'bg-white/10 text-neutral-300 hover:text-white hover:bg-white/15'
+                }`}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Entries List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Entries List Cards with Squircle Elevation */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {filteredEntries.length === 0 ? (
-          <div className="col-span-full bg-[#1c1c1e] rounded-3xl p-12 border border-white/10 text-center space-y-3">
+          <div className="col-span-full bg-[#121218]/70 backdrop-blur-xl rounded-[28px] p-12 border border-white/10 text-center space-y-3 shadow-xl">
             <BookOpen className="w-8 h-8 text-neutral-500 mx-auto" />
-            <div className="text-sm font-semibold text-white">Nenhuma anotação encontrada</div>
-            <p className="text-xs text-neutral-400 max-w-sm mx-auto">
-              Comece escrevendo seu primeiro diário lunar para registrar seu crescimento pessoal.
+            <div className="text-sm sm:text-base font-bold text-white">Nenhuma anotação encontrada</div>
+            <p className="text-xs sm:text-sm text-[#A1A1AA] max-w-sm mx-auto leading-relaxed">
+              Comece escrevendo seu primeiro diário lunar para registrar seu crescimento pessoal e intenções.
             </p>
           </div>
         ) : (
           filteredEntries.map((entry) => (
-            <div
+            <motion.div
               key={entry.id}
-              className="bg-[#1c1c1e] rounded-2xl p-5 border border-white/10 space-y-3 flex flex-col justify-between"
+              whileHover={{ y: -3, scale: 1.005 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              className="bg-[#121218]/70 backdrop-blur-xl rounded-[28px] p-6 sm:p-7 border border-white/[0.08] hover:border-amber-300/30 space-y-4 flex flex-col justify-between shadow-[0_10px_30px_rgba(0,0,0,0.4)] transition-all group"
             >
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span className="flex items-center gap-1">
-                    <CalendarIcon className="w-3.5 h-3.5 text-neutral-400" />
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium text-amber-200/90">
+                    <CalendarIcon className="w-3.5 h-3.5 text-amber-300" />
                     {new Date(entry.date).toLocaleDateString(lang, {
                       day: 'numeric',
                       month: 'short',
@@ -229,45 +248,47 @@ export const LunarJournal: React.FC<LunarJournalProps> = ({ settings, astroData 
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleToggleFavorite(entry.id)}
-                      className={`p-1 rounded-lg transition-colors ${
-                        entry.isFavorite ? 'text-white' : 'text-neutral-500 hover:text-white'
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        entry.isFavorite ? 'text-amber-300' : 'text-neutral-500 hover:text-white'
                       }`}
                     >
-                      <Star className={`w-3.5 h-3.5 ${entry.isFavorite ? 'fill-white' : ''}`} />
+                      <Star className={`w-4 h-4 ${entry.isFavorite ? 'fill-amber-300' : ''}`} />
                     </button>
                     <button
                       onClick={() => handleDeleteEntry(entry.id)}
-                      className="p-1 rounded-lg text-neutral-500 hover:text-white"
+                      className="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 transition-colors"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                <h3 className="text-base font-bold text-white">{entry.title}</h3>
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
+                  {entry.title}
+                </h3>
 
-                <p className="text-xs text-neutral-300 leading-relaxed whitespace-pre-wrap">
+                <p className="text-xs sm:text-sm text-[#A1A1AA] leading-relaxed whitespace-pre-wrap font-normal">
                   {entry.content}
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/5 text-[11px] text-neutral-400">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-white/10 text-xs">
                 <div className="flex items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white font-medium">
+                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-amber-200 text-[11px] font-semibold">
                     {entry.moonPhase}
                   </span>
-                  <span>{entry.moonSign}</span>
+                  <span className="text-[11px] text-neutral-300 font-medium">Lua em {entry.moonSign}</span>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   {entry.tags.map((t) => (
-                    <span key={t} className="text-neutral-400">
+                    <span key={t} className="text-[11px] text-neutral-400 font-medium">
                       #{t}
                     </span>
                   ))}
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>

@@ -10,7 +10,7 @@ import { generateOfflineNatalReading } from '../utils/astrologyEngine';
 import { resetSwissEphemeris } from '../utils/swissEphemeris';
 import {
   Sparkles, Calendar, Clock, MapPin, Compass, Flame, Mountain,
-  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers, Search, RefreshCw
+  Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers, Search, RefreshCw, Filter
 } from 'lucide-react';
 
 interface AstrologyChartProps {
@@ -27,6 +27,12 @@ const ASPECT_COLORS: Record<string, string> = {
   'Trígono': 'text-green-400',
   'Sextil': 'text-blue-400',
   'Quincúncio': 'text-yellow-400',
+  'Semi-sextil': 'text-cyan-300',
+  'Semiquadratura': 'text-pink-400',
+  'Quintil': 'text-emerald-300',
+  'Septil': 'text-purple-300',
+  'Nonil': 'text-[#d5a4c8]',
+  'Decil': 'text-amber-200',
 };
 
 const ASPECT_BG: Record<string, string> = {
@@ -36,6 +42,12 @@ const ASPECT_BG: Record<string, string> = {
   'Trígono': 'bg-green-500/10 border-green-500/20',
   'Sextil': 'bg-blue-500/10 border-blue-500/20',
   'Quincúncio': 'bg-yellow-500/10 border-yellow-500/20',
+  'Semi-sextil': 'bg-cyan-500/10 border-cyan-500/20',
+  'Semiquadratura': 'bg-pink-500/10 border-pink-500/20',
+  'Quintil': 'bg-emerald-500/10 border-emerald-500/20',
+  'Septil': 'bg-purple-500/10 border-purple-500/20',
+  'Nonil': 'bg-fuchsia-500/10 border-fuchsia-500/20',
+  'Decil': 'bg-amber-500/10 border-amber-500/20',
 };
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -84,14 +96,12 @@ function getRadialLevels(planets: PlanetPosition[]): number[] {
 
 /**
  * SVG Mandala Wheel Renderer
- * Fixes Ascendant (ascendant, ascendant) === 180° (Left horizontal axis / 9 o'clock)
+ * Ascendant (ascendant, ascendant) === 180° (Left horizontal axis / 9 o'clock)
  */
-const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps: number[] }> = ({ planets, ascendant, cusps }) => {
+const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps: number[]; aspects: AspectData[] }> = ({ planets, ascendant, cusps, aspects }) => {
   const cx = 150, cy = 150;
-  const outerR = 135, innerR = 100, coreR = 60, centerR = 22;
+  const outerR = 135, innerR = 100, coreR = 60, centerR = 20;
 
-  // Convert astronomical longitude to SVG Cartesian angle
-  // chartAngle(ascendant, ascendant) === 180° (Left = 9 o'clock)
   const getSvgRad = (longitude: number) => {
     const angle = chartAngle(longitude, ascendant);
     return (angle * Math.PI) / 180;
@@ -132,6 +142,37 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
         );
       })}
 
+      {/* Internal Aspect Chords */}
+      {aspects.slice(0, 15).map((asp, idx) => {
+        const p1 = planets.find(p => p.planet === asp.planet1);
+        const p2 = planets.find(p => p.planet === asp.planet2);
+        if (!p1 || !p2) return null;
+
+        const rad1 = getSvgRad(p1.longitude);
+        const rad2 = getSvgRad(p2.longitude);
+
+        const x1 = cx + coreR * Math.cos(rad1);
+        const y1 = cy - coreR * Math.sin(rad1);
+        const x2 = cx + coreR * Math.cos(rad2);
+        const y2 = cy - coreR * Math.sin(rad2);
+
+        const strokeColor = asp.nature === 'harmonious'
+          ? 'rgba(52,211,153,0.35)'
+          : asp.nature === 'tense'
+          ? 'rgba(248,113,113,0.35)'
+          : 'rgba(255,255,255,0.2)';
+
+        return (
+          <line
+            key={idx}
+            x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke={strokeColor}
+            strokeWidth={asp.isMinor ? 0.6 : 1}
+            strokeDasharray={asp.isMinor ? "2 2" : undefined}
+          />
+        );
+      })}
+
       {/* Zodiac sign symbols in outer ring */}
       {['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'].map((sym, i) => {
         const signCenterLng = i * 30 + 15;
@@ -147,10 +188,10 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
       })}
 
       {/* Planets with radial level staggering to avoid collision */}
-      {planets.slice(0, 12).map((planet, i) => {
+      {planets.map((planet, i) => {
         const rad = getSvgRad(planet.longitude);
         const level = radialLevels[i] || 0;
-        const r = innerR - 14 - level * 12;
+        const r = innerR - 14 - level * 11;
         const px = cx + r * Math.cos(rad);
         const py = cy - r * Math.sin(rad);
         return (
@@ -158,12 +199,12 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
             key={planet.planet}
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ ...softSpring, delay: 0.18 + i * 0.045 }}
+            transition={{ ...softSpring, delay: 0.18 + i * 0.03 }}
             style={{ transformOrigin: `${px}px ${py}px` }}
           >
-            <circle cx={px} cy={py} r="9" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+            <circle cx={px} cy={py} r="8.5" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
             <text x={px} y={py} textAnchor="middle" dominantBaseline="central"
-              fill={planet.isRetrograde ? '#ff9f0a' : '#ffffff'} fontSize="8" fontWeight="bold">
+              fill={planet.isRetrograde ? '#ff9f0a' : '#ffffff'} fontSize="7.5" fontWeight="bold">
               {planet.symbol}
             </text>
           </motion.g>
@@ -177,8 +218,8 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
       <text x={cx + outerR - 22} y={cy - 5} fill="rgba(255,255,255,0.5)" fontSize="7">DSC</text>
 
       {/* Center Label */}
-      <text x={cx} y={cy - 4} textAnchor="middle" fill="white" fontSize="7" fontWeight="bold">SWISS EPHEMERIS</text>
-      <text x={cx} y={cy + 6} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="6">ASTRO.COM 100%</text>
+      <text x={cx} y={cy - 3} textAnchor="middle" fill="white" fontSize="6.5" fontWeight="bold">SWISS EPHEMERIS</text>
+      <text x={cx} y={cy + 5} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="5.5">100% ASTRO.COM</text>
     </motion.svg>
   );
 };
@@ -197,6 +238,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [houseSystem, setHouseSystem] = useState<'Placidus' | 'Equal' | 'WholeSign'>(
     initialChart?.houseSystem ?? 'Placidus'
   );
+  const [showMinorAspects, setShowMinorAspects] = useState<boolean>(false);
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
   const [isCalculating, setIsCalculating] = useState<boolean>(!initialChart);
   const [calculationError, setCalculationError] = useState<string | null>(null);
@@ -369,7 +411,8 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const risingDesc = SIGN_DESCRIPTIONS[chart.risingSign] || SIGN_DESCRIPTIONS['Cancer'];
 
   const fullChart = chart.fullChart;
-  const aspects: AspectData[] = fullChart?.aspects || [];
+  const rawAspects: AspectData[] = fullChart?.aspects || [];
+  const filteredAspects = showMinorAspects ? rawAspects : rawAspects.filter(a => !a.isMinor);
 
   const tabs: { id: Tab; label: string; emoji: string }[] = [
     { id: 'tropical', label: 'Tropical', emoji: '☀️' },
@@ -444,13 +487,13 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.1] text-[#ded7e8] text-xs font-medium mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-white" /> Algoritmo Swiss Ephemeris Astro.com
+              <Sparkles className="w-3.5 h-3.5 text-white" /> Algoritmo Swiss Ephemeris Astro.com 100%
             </div>
             <h1 className="max-w-2xl text-3xl sm:text-5xl font-semibold text-[#fbf7f1] tracking-[-0.035em] leading-[0.98]">
               Seu céu, traduzido em clareza
             </h1>
             <p className="text-sm sm:text-base text-[#bcb5c6] max-w-2xl mt-3 leading-relaxed">
-              Uma leitura visual do seu mapa natal com planetas, casas, aspectos e camadas tropical e védica — com foco em descoberta, não em ruído.
+              Uma leitura visual do seu mapa natal com planetas, casas, aspectos maiores e menores, Lilith, Parte da Fortuna e Vértice.
             </p>
           </div>
 
@@ -478,13 +521,17 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           </div>
         </div>
 
-        {/* Big 3 Badges */}
+        {/* Big 3 & Extended Points Badges */}
         <div className="flex flex-wrap items-center gap-2 mt-5">
           {[
             { label: '☉ Sol', value: `${chart.sunSymbol} ${fullChart?.tropical[0]?.signPt || chart.sunSign}` },
             { label: '☽ Lua', value: `${chart.moonSymbol} ${fullChart?.tropical[1]?.signPt || chart.moonSign}` },
             { label: '↑ Ascendente', value: `${chart.risingSymbol} ${fullChart?.ascendantSignPt || chart.risingSign}` },
-            ...(fullChart ? [{ label: 'MC (Meio do Céu)', value: `${fullChart.midheavenSymbol} ${fullChart.midheavenSignPt}` }] : []),
+            ...(fullChart ? [
+              { label: 'MC (Meio do Céu)', value: `${fullChart.midheavenSymbol} ${fullChart.midheavenSignPt}` },
+              { label: '⚸ Lilith', value: fullChart.tropical.find(p => p.planet === 'Lilith')?.signPt || 'Câncer' },
+              { label: '⊗ Fortuna', value: fullChart.tropical.find(p => p.planet === 'Parte da Fortuna')?.signPt || 'Áries' },
+            ] : []),
           ].map(b => (
             <div key={b.label} className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-center">
               <span className="text-[10px] text-neutral-400 mr-1.5">{b.label}:</span>
@@ -657,10 +704,10 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           {fullChart && (
             <motion.section variants={fadeUp} className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(145,119,214,0.12),transparent_48%),#17141e] rounded-[34px] p-5 sm:p-7 border border-white/[0.08] shadow-[0_26px_80px_rgba(0,0,0,0.24)]">
               <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 text-center">
-                Roda Zodiacal — Alinhamento Padrão Astro.com (ASC a Oeste/Esquerda)
+                Roda Zodiacal — Ascendente a Oeste / 9 horas
               </h2>
               <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto">
-                <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} cusps={fullChart.houseCusps} />
+                <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} cusps={fullChart.houseCusps} aspects={filteredAspects} />
               </div>
             </motion.section>
           )}
@@ -694,7 +741,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-white" />
-                  <h3 className="text-sm font-bold text-white">Posições Planetárias (Tropical)</h3>
+                  <h3 className="text-sm font-bold text-white">Posições Planetárias & Pontos Exatos</h3>
                 </div>
                 <span className="text-[11px] text-neutral-400">Sistema: {houseSystem}</span>
               </div>
@@ -730,11 +777,19 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
                   <span className="text-lg">⭐</span>
                   <h3 className="text-sm font-bold text-white">Aspectos Astrológicos</h3>
                 </div>
-                <span className="text-xs text-neutral-400">{aspects.length} aspectos</span>
+                <button
+                  onClick={() => setShowMinorAspects(!showMinorAspects)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
+                    showMinorAspects ? 'bg-white text-black border-white' : 'bg-white/5 text-neutral-300 border-white/10 hover:text-white'
+                  }`}
+                >
+                  <Filter className="w-3 h-3" />
+                  <span>{showMinorAspects ? 'Aspectos Menores Ativos' : 'Apenas Maiores'}</span>
+                </button>
               </div>
 
               <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
-                {aspects.map((asp, i) => (
+                {filteredAspects.map((asp, i) => (
                   <div key={i}
                     className={`rounded-xl border p-3 cursor-pointer transition-all ${ASPECT_BG[asp.aspect] || 'bg-white/5 border-white/10'}`}
                     onClick={() => setExpandedAspect(expandedAspect === i ? null : i)}>

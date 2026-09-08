@@ -20,6 +20,7 @@ export interface SwissAstronomyResult {
   julianDay: number;
   ascendant: number;
   midheaven: number;
+  vertex: number;
   houseCusps: number[];
   ayanamshaLahiri: number;
   planets: RawCelestialPosition[];
@@ -118,13 +119,11 @@ export function getSwissEphemeris(): Promise<any> {
           console.log('[Swiss] Efemérides do CDN carregadas.');
         } catch (cdnErr) {
           console.error('[Swiss] Falha ao carregar efemérides via CDN:', cdnErr);
-          // Moshier fallback allows main calculations to proceed even offline
         }
       }
 
       return swe;
     })().catch((error) => {
-      // Impede o cache indefinido de Promises rejeitadas
       enginePromise = null;
       throw error;
     });
@@ -150,7 +149,7 @@ export async function calculateSwissAstronomy(
   const houseData = swe.calculateHouses(jd, params.lat, params.lng, houseCode);
 
   const Planet = swe.Planet || { Sun: 0, Moon: 1, Mercury: 2, Venus: 3, Mars: 4, Jupiter: 5, Saturn: 6, Uranus: 7, Neptune: 8, Pluto: 9 };
-  const LunarPoint = swe.LunarPoint || { TrueNode: 11 };
+  const LunarPoint = swe.LunarPoint || { TrueNode: 11, MeanApogee: 12 };
   const Asteroid = swe.Asteroid || { Chiron: 15 };
   const SiderealMode = swe.SiderealMode || { Lahiri: 1 };
 
@@ -167,6 +166,7 @@ export async function calculateSwissAstronomy(
     { key: 'pluto',   name: 'Plutão',     symbol: '♇', en: 'Pluto',     bodyId: Planet.Pluto },
     { key: 'node',    name: 'Nodo Norte', symbol: '☊', en: 'True Node', bodyId: LunarPoint.TrueNode },
     { key: 'chiron',  name: 'Quíron',     symbol: '⚷', en: 'Chiron',    bodyId: Asteroid.Chiron },
+    { key: 'lilith',  name: 'Lilith',     symbol: '⚸', en: 'Lilith',    bodyId: LunarPoint.MeanApogee },
   ];
 
   const planets: RawCelestialPosition[] = BODIES.map((b) => {
@@ -186,6 +186,45 @@ export async function calculateSwissAstronomy(
     };
   });
 
+  const ascLng = (houseData.ascendant + 360) % 360;
+  const mcLng = (houseData.mc + 360) % 360;
+  const vertexLng = (houseData.vertex + 360) % 360;
+
+  const sunObj = planets.find(p => p.key === 'sun')!;
+  const moonObj = planets.find(p => p.key === 'moon')!;
+
+  // Day vs Night chart calculation for Part of Fortune (Pars Fortunae)
+  // Day: ASC + Moon - Sun; Night: ASC + Sun - Moon
+  const sunAngleFromAsc = (sunObj.lng - ascLng + 360) % 360;
+  const isDayChart = sunAngleFromAsc >= 180 && sunAngleFromAsc < 360;
+  const fortuneLng = isDayChart
+    ? (ascLng + moonObj.lng - sunObj.lng + 360) % 360
+    : (ascLng + sunObj.lng - moonObj.lng + 360) % 360;
+
+  planets.push({
+    key: 'fortune',
+    name: 'Parte da Fortuna',
+    symbol: '⊗',
+    en: 'Part of Fortune',
+    lng: fortuneLng,
+    lat: 0,
+    distance: 1,
+    longitudeSpeed: 0,
+    isRetrograde: false,
+  });
+
+  planets.push({
+    key: 'vertex',
+    name: 'Vértice',
+    symbol: 'Vx',
+    en: 'Vertex',
+    lng: vertexLng,
+    lat: 0,
+    distance: 1,
+    longitudeSpeed: 0,
+    isRetrograde: false,
+  });
+
   swe.setSiderealMode(SiderealMode.Lahiri || 1, 0, 0);
   const ayanamsha = swe.getAyanamsa(jd);
 
@@ -195,8 +234,9 @@ export async function calculateSwissAstronomy(
 
   return {
     julianDay: jd,
-    ascendant: (houseData.ascendant + 360) % 360,
-    midheaven: (houseData.mc + 360) % 360,
+    ascendant: ascLng,
+    midheaven: mcLng,
+    vertex: vertexLng,
     houseCusps: houseCusps.map((c: number) => (c + 360) % 360),
     ayanamshaLahiri: ayanamsha,
     planets,

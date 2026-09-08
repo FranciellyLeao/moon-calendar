@@ -24,7 +24,7 @@ export const ZODIAC_NAMES_PT = [
   'Libra','Escorpião','Sagitário','Capricórnio','Aquário','Peixes'
 ];
 
-export const ZODIAC_SYMBOLS = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','FH'];
+export const ZODIAC_SYMBOLS = ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'];
 
 export interface PlanetPosition {
   planet: string;
@@ -56,6 +56,7 @@ export interface AspectData {
   angle: number;
   orb: number;
   isApplying: boolean;
+  isMinor?: boolean;
   nature: 'harmonious' | 'tense' | 'neutral';
   description: string;
 }
@@ -73,6 +74,7 @@ export interface FullNatalChart {
   midheavenSign: string;
   midheavenSignPt: string;
   midheavenSymbol: string;
+  vertex: number;
   houseSystem: HouseSystemType;
   houseCusps: number[];
   aspects: AspectData[];
@@ -102,13 +104,21 @@ function signFromLng(lng: number) {
   };
 }
 
-const ASPECT_DEFS = [
-  { name: 'Conjunção',  angle:   0, orb: 8, nature: 'neutral'    as const, description: 'União de energias — fusão intensa e concentração de poder.' },
-  { name: 'Oposição',   angle: 180, orb: 8, nature: 'tense'      as const, description: 'Tensão polarizante — desafio de integrar forças opostas.' },
-  { name: 'Quadratura', angle:  90, orb: 7, nature: 'tense'      as const, description: 'Fricção dinâmica — conflito que gera crescimento e ação.' },
-  { name: 'Trígono',    angle: 120, orb: 8, nature: 'harmonious' as const, description: 'Fluxo harmonioso — talentos naturais e energia fluida.' },
-  { name: 'Sextil',     angle:  60, orb: 5, nature: 'harmonious' as const, description: 'Oportunidade — colaboração entre energias compatíveis.' },
-  { name: 'Quincúncio', angle: 150, orb: 3, nature: 'tense'      as const, description: 'Ajuste necessário — requer adaptação e reequilíbrio.' },
+export const ASPECT_DEFS = [
+  // Major Aspects
+  { name: 'Conjunção',      angle:   0,   orb: 8,   isMinor: false, nature: 'neutral'    as const, description: 'União de energias — fusão intensa e concentração de poder.' },
+  { name: 'Oposição',       angle: 180,   orb: 8,   isMinor: false, nature: 'tense'      as const, description: 'Tensão polarizante — desafio de integrar forças opostas.' },
+  { name: 'Quadratura',     angle:  90,   orb: 7,   isMinor: false, nature: 'tense'      as const, description: 'Fricção dinâmica — conflito que gera crescimento e ação.' },
+  { name: 'Trígono',        angle: 120,   orb: 8,   isMinor: false, nature: 'harmonious' as const, description: 'Fluxo harmonioso — talentos naturais e energia fluida.' },
+  { name: 'Sextil',         angle:  60,   orb: 5,   isMinor: false, nature: 'harmonious' as const, description: 'Oportunidade — colaboração entre energias compatíveis.' },
+  { name: 'Quincúncio',     angle: 150,   orb: 3,   isMinor: false, nature: 'tense'      as const, description: 'Ajuste necessário — requer adaptação e reequilíbrio.' },
+  { name: 'Semi-sextil',    angle:  30,   orb: 2,   isMinor: false, nature: 'harmonious' as const, description: 'Apoio sutil — pequenos aprendizados e cooperação suave.' },
+  // Minor Aspects
+  { name: 'Semiquadratura', angle:  45,   orb: 2.5, isMinor: true,  nature: 'tense'      as const, description: 'Fricção menor — pequenas irritações que exigem ajuste.' },
+  { name: 'Quintil',        angle:  72,   orb: 2.5, isMinor: true,  nature: 'harmonious' as const, description: 'Talento criativo — inspiração, expressão artística e engenhosidade.' },
+  { name: 'Septil',         angle: 51.43, orb: 1.5, isMinor: true,  nature: 'neutral'    as const, description: 'Destino e mistério — intuição profunda e insights espirituais.' },
+  { name: 'Nonil',          angle:  40,   orb: 1.5, isMinor: true,  nature: 'harmonious' as const, description: 'Crescimento interior — maturação psíquica e assimilação.' },
+  { name: 'Decil',          angle:  36,   orb: 1.5, isMinor: true,  nature: 'harmonious' as const, description: 'Habilidade técnica — capacidade prática e especialização.' },
 ];
 
 function calcAspects(positions: PlanetPosition[]): AspectData[] {
@@ -126,6 +136,7 @@ function calcAspects(positions: PlanetPosition[]): AspectData[] {
             p1Symbol: p1.symbol, p2Symbol: p2.symbol,
             aspect: asp.name, angle: asp.angle, orb: Math.round(orb * 10) / 10,
             isApplying: orb < 1,
+            isMinor: asp.isMinor,
             nature: asp.nature, description: asp.description,
           });
           break;
@@ -213,6 +224,7 @@ export async function calcFullNatalChart(
     midheavenSign: mcInfo.sign,
     midheavenSignPt: mcInfo.signPt,
     midheavenSymbol: mcInfo.symbol,
+    vertex: swiss.vertex,
     houseSystem,
     houseCusps: cusps, aspects, ayanamsha: Math.round(ayanamsha * 100) / 100,
     vedicAscendant: vAscInfo.signPt, vedicAscendantSymbol: vAscInfo.symbol,

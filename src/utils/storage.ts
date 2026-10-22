@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   INTENTIONS: 'moon_app_intentions',
   CYCLE: 'moon_app_cycle',
   SUBSCRIBERS: 'moon_app_subscribers',
+  ADMIN_PIN: 'moon_admin_pin',
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -316,3 +317,40 @@ export function exportSubscribersCSV(): string {
   });
   return csv;
 }
+
+export const DEFAULT_ADMIN_PIN = '2026';
+
+export function getStoredAdminPin(): string {
+  const pin = safeStorage.getItem(STORAGE_KEYS.ADMIN_PIN);
+  return pin && /^\d{4}$/.test(pin.trim()) ? pin.trim() : DEFAULT_ADMIN_PIN;
+}
+
+export function saveStoredAdminPin(newPin: string): { success: boolean; message: string } {
+  const trimmed = (newPin || '').trim();
+  if (!/^\d{4}$/.test(trimmed)) {
+    return { success: false, message: 'O PIN deve conter exatamente 4 dígitos numéricos.' };
+  }
+  safeStorage.setItem(STORAGE_KEYS.ADMIN_PIN, trimmed);
+  return { success: true, message: 'PIN administrativo atualizado com sucesso!' };
+}
+
+export function verifyAdminPin(pin: string): boolean {
+  if (!pin) return false;
+  return pin.trim() === getStoredAdminPin();
+}
+
+export function deleteSubscriber(email: string): boolean {
+  const list = getStoredSubscribers();
+  const normalized = email.trim().toLowerCase();
+  const filtered = list.filter((s) => s.email.toLowerCase() !== normalized);
+  if (filtered.length !== list.length) {
+    saveStoredSubscribers(filtered);
+    return true;
+  }
+  return false;
+}
+
+export function clearAllSubscribers(): void {
+  saveStoredSubscribers([]);
+}
+

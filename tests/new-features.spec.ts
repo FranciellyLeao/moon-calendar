@@ -4,6 +4,11 @@ import {
   getStoredSubscribers,
   saveStoredSubscribers,
   exportSubscribersCSV,
+  getStoredAdminPin,
+  saveStoredAdminPin,
+  verifyAdminPin,
+  deleteSubscriber,
+  clearAllSubscribers,
   safeStorage,
   type SubscriberEntry,
 } from '../src/utils/storage';
@@ -89,6 +94,73 @@ describe('Email Subscription System & CSV Export', () => {
     expect(csv.split('\n').length).toBe(5002); // Header + 5000 rows + trailing newline
   });
 });
+
+describe('Admin Area 4-Digit PIN Security & Subscriber Management', () => {
+  beforeEach(() => {
+    safeStorage.clear();
+    saveStoredSubscribers([]);
+  });
+
+  it('uses 2026 as default admin PIN when none is set', () => {
+    expect(getStoredAdminPin()).toBe('2026');
+    expect(verifyAdminPin('2026')).toBe(true);
+    expect(verifyAdminPin('0000')).toBe(false);
+    expect(verifyAdminPin('1234')).toBe(false);
+  });
+
+  it('validates 4-digit numeric format on PIN update', () => {
+    // Rejects non-numeric or wrong lengths
+    expect(saveStoredAdminPin('123').success).toBe(false);
+    expect(saveStoredAdminPin('12345').success).toBe(false);
+    expect(saveStoredAdminPin('abcd').success).toBe(false);
+    expect(saveStoredAdminPin('').success).toBe(false);
+
+    // Default remains unchanged after invalid attempts
+    expect(getStoredAdminPin()).toBe('2026');
+
+    // Accepts valid 4-digit PIN
+    const res = saveStoredAdminPin('7890');
+    expect(res.success).toBe(true);
+    expect(getStoredAdminPin()).toBe('7890');
+    expect(verifyAdminPin('7890')).toBe(true);
+    expect(verifyAdminPin('2026')).toBe(false);
+  });
+
+  it('handles PIN edge cases safely', () => {
+    expect(verifyAdminPin('')).toBe(false);
+    expect(verifyAdminPin(' ')).toBe(false);
+    expect(verifyAdminPin('abc')).toBe(false);
+    // Trimmed whitespace handling
+    expect(verifyAdminPin(' 2026 ')).toBe(true);
+  });
+
+  it('allows admin to delete an individual subscriber by email case-insensitively', () => {
+    saveSubscriber('remove.me@example.com', 'test');
+    saveSubscriber('keep.me@example.com', 'test');
+
+    expect(getStoredSubscribers().length).toBe(2);
+
+    const deleted = deleteSubscriber('REMOVE.ME@EXAMPLE.COM');
+    expect(deleted).toBe(true);
+
+    const remaining = getStoredSubscribers();
+    expect(remaining.length).toBe(1);
+    expect(remaining[0].email).toBe('keep.me@example.com');
+
+    // Deleting non-existent email returns false
+    expect(deleteSubscriber('nonexistent@example.com')).toBe(false);
+  });
+
+  it('allows admin to clear all subscribers', () => {
+    saveSubscriber('user1@example.com', 'test');
+    saveSubscriber('user2@example.com', 'test');
+    expect(getStoredSubscribers().length).toBe(2);
+
+    clearAllSubscribers();
+    expect(getStoredSubscribers().length).toBe(0);
+  });
+});
+
 
 describe('Moon Astrometric Math & SunCalc 2.0 Integration', () => {
   it('correctly handles SunCalc 2.0 native degrees without corrupting near-horizon or near-north angles', () => {

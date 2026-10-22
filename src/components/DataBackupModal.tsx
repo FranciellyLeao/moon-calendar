@@ -4,15 +4,12 @@ import {
   getStoredIntentions,
   getStoredCycleLogs,
   getStoredSettings,
-  getStoredSubscribers,
   saveStoredJournal,
   saveStoredIntentions,
   saveStoredCycleLogs,
   saveStoredSettings,
-  saveStoredSubscribers,
-  exportSubscribersCSV,
 } from '../utils/storage';
-import { Download, Upload, X, FileText, Database, Mail } from 'lucide-react';
+import { Download, Upload, X, FileText, Database } from 'lucide-react';
 
 interface DataBackupModalProps {
   isOpen: boolean;
@@ -29,17 +26,14 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
 
   if (!isOpen) return null;
 
-  const subscribers = getStoredSubscribers();
-
   const handleExportJSON = () => {
     const backupData = {
-      version: '1.1.0',
+      version: '1.2.0',
       exportedAt: new Date().toISOString(),
       settings: getStoredSettings(),
       journal: getStoredJournal(),
       intentions: getStoredIntentions(),
       cycleLogs: getStoredCycleLogs(),
-      subscribers: getStoredSubscribers(),
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -67,15 +61,6 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     a.click();
   };
 
-  const handleExportSubscribers = () => {
-    const csv = exportSubscribersCSV();
-    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csv);
-    const a = document.createElement('a');
-    a.href = encodedUri;
-    a.download = `inscritos_diario_lunar_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
-
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -88,9 +73,6 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         if (data.intentions) saveStoredIntentions(data.intentions);
         if (data.cycleLogs) saveStoredCycleLogs(data.cycleLogs);
         if (data.settings) saveStoredSettings(data.settings);
-        if (data.subscribers && Array.isArray(data.subscribers)) {
-          saveStoredSubscribers(data.subscribers);
-        }
 
         setImportStatus('✅ Backup restaurado com sucesso!');
         setTimeout(() => {
@@ -105,8 +87,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 border border-white/10 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fadeIn">
+      <div className="bg-[#0c0c0e] rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-5 border border-white/10 relative shadow-2xl">
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2 text-white font-bold text-base">
             <Database className="w-4 h-4 text-white" />
@@ -118,7 +100,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         </div>
 
         <div className="space-y-4 text-xs text-neutral-300">
-          <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-3">
+          <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-3">
             <div className="font-semibold text-white">Exportar Seus Dados</div>
             <p className="text-[11px] text-neutral-400">
               Faça o download de todos os seus diários, intenções e ciclos corporais em formato seguro.
@@ -137,16 +119,6 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 className="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs border border-white/10 flex items-center justify-center gap-1.5 transition-all"
               >
                 <FileText className="w-3.5 h-3.5" /> Diário em CSV
-              </button>
-            </div>
-
-            <div className="pt-1">
-              <button
-                onClick={handleExportSubscribers}
-                className="w-full py-2.5 px-3 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-200 font-semibold text-xs border border-amber-400/30 flex items-center justify-center gap-2 transition-all shadow-sm"
-              >
-                <Mail className="w-3.5 h-3.5 text-amber-300" />
-                <span>Baixar Lista de E-mails ({subscribers.length}) (.CSV)</span>
               </button>
             </div>
           </div>

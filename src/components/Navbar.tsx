@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </motion.div>
 
           {/* Primary Clean Navigation */}
-          <nav className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-full border border-white/10">
+          <nav className="hidden md:flex items-center gap-1 bg-white/[0.04] p-1 rounded-full border border-white/[0.08]">
             {mainNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -122,17 +122,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all text-neutral-300 hover:text-white"
+                  className={`relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isActive ? 'text-white' : 'text-neutral-400 hover:text-white'
+                  }`}
                 >
                   {isActive && (
                     <motion.div
                       layoutId="activeTabBadge"
-                      className="absolute inset-0 bg-white rounded-full"
+                      className="absolute inset-0 bg-white/[0.12] border border-white/[0.16] rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.6)] backdrop-blur-md"
                       transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                     />
                   )}
-                  <span className="relative z-10 flex items-center gap-1.5 font-semibold" style={{ color: isActive ? '#000000' : undefined }}>
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                  <span className="relative z-10 flex items-center gap-1.5 font-semibold">
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#E6CA65]' : 'text-neutral-400'}`} />
                     {item.label}
                   </span>
                 </button>
@@ -143,16 +145,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsMoreOpen(!isMoreOpen)}
-                className="relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all text-neutral-300 hover:text-white"
+                className={`relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  isSecondaryActive ? 'text-white' : 'text-neutral-400 hover:text-white'
+                }`}
               >
                 {isSecondaryActive && (
                   <motion.div
                     layoutId="activeTabBadge"
-                    className="absolute inset-0 bg-white rounded-full"
+                    className="absolute inset-0 bg-white/[0.12] border border-white/[0.16] rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.6)] backdrop-blur-md"
                     transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                   />
                 )}
-                <span className="relative z-10 flex items-center gap-1.5 font-semibold" style={{ color: isSecondaryActive ? '#000000' : undefined }}>
+                <span className="relative z-10 flex items-center gap-1.5 font-semibold">
                   <span>{activeSecondaryItem ? activeSecondaryItem.label : 'Mais'}</span>
                   <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isMoreOpen ? 'rotate-180' : ''}`} />
                 </span>
@@ -165,7 +169,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -8 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 mt-2 w-64 bg-[#141419]/95 border border-white/15 rounded-2xl shadow-2xl p-2.5 z-50 backdrop-blur-3xl space-y-3"
+                    className="absolute right-0 mt-2 w-64 bg-[#0a0a0c]/95 border border-white/10 rounded-2xl shadow-2xl p-2.5 z-50 backdrop-blur-3xl space-y-3"
                   >
                     {categorizedNavItems.map((cat, idx) => (
                       <div key={cat.title} className={idx > 0 ? 'pt-1.5 border-t border-white/10' : ''}>
@@ -186,11 +190,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 whileHover={{ x: 3 }}
                                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
                                   isActive
-                                    ? 'bg-white text-black font-semibold shadow-md'
+                                    ? 'bg-white/[0.14] text-white border border-white/20 font-semibold shadow-md'
                                     : 'text-neutral-300 hover:bg-white/10 hover:text-white'
                                 }`}
                               >
-                                <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-amber-300/80'}`} />
+                                <Icon className={`w-4 h-4 ${isActive ? 'text-[#E6CA65]' : 'text-[#E6CA65]/80'}`} />
                                 <span>{item.label}</span>
                               </motion.button>
                             );
@@ -222,7 +226,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={openSettingsModal}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-xs font-medium"
             >
-              <MapPin className="w-3.5 h-3.5 text-amber-300/80" />
+              <MapPin className="w-3.5 h-3.5 text-[#E6CA65]/90" />
               <span className="max-w-[90px] truncate text-[11px]">
                 {settings.location.name}
               </span>
@@ -242,11 +246,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => setActiveTab(item.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-white text-black font-semibold'
+                    ? 'bg-white/[0.14] text-white font-semibold border border-white/20'
                     : 'text-neutral-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#E6CA65]' : 'text-neutral-400'}`} />
                 {item.label}
               </button>
             );

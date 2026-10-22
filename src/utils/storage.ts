@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   JOURNAL: 'moon_app_journal',
   INTENTIONS: 'moon_app_intentions',
   CYCLE: 'moon_app_cycle',
+  SUBSCRIBERS: 'moon_app_subscribers',
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -103,8 +104,56 @@ const INITIAL_CYCLE_LOGS: CycleLog[] = [
   },
 ];
 
+const memoryStore = new Map<string, string>();
+
+export const safeStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+    } catch {
+      // fallback
+    }
+    return memoryStore.get(key) ?? null;
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+        return;
+      }
+    } catch {
+      // fallback
+    }
+    memoryStore.set(key, value);
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+        return;
+      }
+    } catch {
+      // fallback
+    }
+    memoryStore.delete(key);
+  },
+  clear: (): void => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.clear();
+        return;
+      }
+    } catch {
+      // fallback
+    }
+    memoryStore.clear();
+  },
+};
+
 export function getStoredSettings(): UserSettings {
-  const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+  const data = safeStorage.getItem(STORAGE_KEYS.SETTINGS);
   if (!data) return DEFAULT_SETTINGS;
   try {
     const parsed = JSON.parse(data);
@@ -129,14 +178,14 @@ export function getStoredSettings(): UserSettings {
 }
 
 export function saveStoredSettings(settings: UserSettings): void {
-  localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  safeStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('moon_settings_updated', { detail: settings }));
   }
 }
 
 export function getStoredJournal(): JournalEntry[] {
-  const data = localStorage.getItem(STORAGE_KEYS.JOURNAL);
+  const data = safeStorage.getItem(STORAGE_KEYS.JOURNAL);
   if (!data) return INITIAL_JOURNAL;
   try {
     const parsed = JSON.parse(data);
@@ -147,11 +196,11 @@ export function getStoredJournal(): JournalEntry[] {
 }
 
 export function saveStoredJournal(entries: JournalEntry[]): void {
-  localStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify(entries));
+  safeStorage.setItem(STORAGE_KEYS.JOURNAL, JSON.stringify(entries));
 }
 
 export function getStoredIntentions(): IntentionGoal[] {
-  const data = localStorage.getItem(STORAGE_KEYS.INTENTIONS);
+  const data = safeStorage.getItem(STORAGE_KEYS.INTENTIONS);
   if (!data) return INITIAL_INTENTIONS;
   try {
     const parsed = JSON.parse(data);
@@ -162,11 +211,11 @@ export function getStoredIntentions(): IntentionGoal[] {
 }
 
 export function saveStoredIntentions(intentions: IntentionGoal[]): void {
-  localStorage.setItem(STORAGE_KEYS.INTENTIONS, JSON.stringify(intentions));
+  safeStorage.setItem(STORAGE_KEYS.INTENTIONS, JSON.stringify(intentions));
 }
 
 export function getStoredCycleLogs(): CycleLog[] {
-  const data = localStorage.getItem(STORAGE_KEYS.CYCLE);
+  const data = safeStorage.getItem(STORAGE_KEYS.CYCLE);
   if (!data) return INITIAL_CYCLE_LOGS;
   try {
     const parsed = JSON.parse(data);
@@ -177,5 +226,93 @@ export function getStoredCycleLogs(): CycleLog[] {
 }
 
 export function saveStoredCycleLogs(logs: CycleLog[]): void {
-  localStorage.setItem(STORAGE_KEYS.CYCLE, JSON.stringify(logs));
+  safeStorage.setItem(STORAGE_KEYS.CYCLE, JSON.stringify(logs));
+}
+
+export interface SubscriberEntry {
+  email: string;
+  subscribedAt: string;
+  source?: string;
+  status: 'active' | 'unsubscribed';
+}
+
+const INITIAL_SUBSCRIBERS: SubscriberEntry[] = [
+  {
+    email: 'contato@diariolunar.app',
+    subscribedAt: '2026-01-15T10:00:00.000Z',
+    source: 'dashboard',
+    status: 'active',
+  },
+];
+
+export function getStoredSubscribers(): SubscriberEntry[] {
+  const data = safeStorage.getItem(STORAGE_KEYS.SUBSCRIBERS);
+  if (!data) return INITIAL_SUBSCRIBERS;
+  try {
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : INITIAL_SUBSCRIBERS;
+  } catch {
+    return INITIAL_SUBSCRIBERS;
+  }
+}
+
+export function saveSubscriber(
+  rawEmail: string,
+  source: string = 'dashboard'
+): { success: boolean; isDuplicate?: boolean; message: string; count: number } {
+  const email = rawEmail.trim().toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!email || !emailRegex.test(email)) {
+    return {
+      success: false,
+      message: 'Por favor, insira um e-mail válido.',
+      count: getStoredSubscribers().length,
+    };
+  }
+
+  const existing = getStoredSubscribers();
+  const alreadyExists = existing.some((s) => s.email.toLowerCase() === email);
+
+  if (alreadyExists) {
+    return {
+      success: false,
+      isDuplicate: true,
+      message: 'Este e-mail já está inscrito no Diário Lunar! ✨',
+      count: existing.length,
+    };
+  }
+
+  const newEntry: SubscriberEntry = {
+    email,
+    subscribedAt: new Date().toISOString(),
+    source,
+    status: 'active',
+  };
+
+  const updated = [newEntry, ...existing];
+  safeStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(updated));
+
+  return {
+    success: true,
+    message: 'Inscrição confirmada com sucesso! Bem-vindo(a) ao Diário Lunar. 🌙',
+    count: updated.length,
+  };
+}
+
+export function saveStoredSubscribers(subscribers: SubscriberEntry[]): void {
+  safeStorage.setItem(STORAGE_KEYS.SUBSCRIBERS, JSON.stringify(subscribers));
+}
+
+export function exportSubscribersCSV(): string {
+  const list = getStoredSubscribers();
+  let csv = 'Email,Data_Inscricao,Origem,Status\n';
+  list.forEach((sub) => {
+    const cleanEmail = (sub.email || '').replace(/"/g, '""');
+    const cleanDate = (sub.subscribedAt || '').replace(/"/g, '""');
+    const cleanSource = (sub.source || 'web').replace(/"/g, '""');
+    const cleanStatus = (sub.status || 'active').replace(/"/g, '""');
+    csv += `"${cleanEmail}","${cleanDate}","${cleanSource}","${cleanStatus}"\n`;
+  });
+  return csv;
 }

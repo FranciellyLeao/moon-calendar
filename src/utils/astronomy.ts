@@ -75,7 +75,7 @@ export function getMoonZodiacSign(date: Date): { name: string; symbol: string; d
 
 function formatTimeString(date: Date | null | undefined): string {
   if (!date || isNaN(date.getTime())) return '--:--';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function findNextPhase(startDate: Date, targetPhaseCode: 'full' | 'new'): { date: string; daysLeft: number } {
@@ -129,7 +129,7 @@ export function getAstronomyData(date: Date = new Date(), lat: number = -23.5505
     nextFullMoon: nextFull,
     nextNewMoon: nextNew,
     distanceKm,
-    altitudeDeg: Math.round((moonPos.altitude * 180) / Math.PI),
-    azimuthDeg: Math.round((moonPos.azimuth * 180) / Math.PI + 180),
+    altitudeDeg: Math.round(moonPos.altitude * 10) / 10,
+    azimuthDeg: Math.round((((moonPos.azimuth % 360) + 360) % 360) * 10) / 10,
   };
 }

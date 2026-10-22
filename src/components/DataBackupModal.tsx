@@ -4,12 +4,15 @@ import {
   getStoredIntentions,
   getStoredCycleLogs,
   getStoredSettings,
+  getStoredSubscribers,
   saveStoredJournal,
   saveStoredIntentions,
   saveStoredCycleLogs,
   saveStoredSettings,
+  saveStoredSubscribers,
+  exportSubscribersCSV,
 } from '../utils/storage';
-import { Download, Upload, X, FileText, Database } from 'lucide-react';
+import { Download, Upload, X, FileText, Database, Mail } from 'lucide-react';
 
 interface DataBackupModalProps {
   isOpen: boolean;
@@ -26,14 +29,17 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
 
   if (!isOpen) return null;
 
+  const subscribers = getStoredSubscribers();
+
   const handleExportJSON = () => {
     const backupData = {
-      version: '1.0.0',
+      version: '1.1.0',
       exportedAt: new Date().toISOString(),
       settings: getStoredSettings(),
       journal: getStoredJournal(),
       intentions: getStoredIntentions(),
       cycleLogs: getStoredCycleLogs(),
+      subscribers: getStoredSubscribers(),
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -61,6 +67,15 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     a.click();
   };
 
+  const handleExportSubscribers = () => {
+    const csv = exportSubscribersCSV();
+    const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csv);
+    const a = document.createElement('a');
+    a.href = encodedUri;
+    a.download = `inscritos_diario_lunar_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -73,6 +88,9 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         if (data.intentions) saveStoredIntentions(data.intentions);
         if (data.cycleLogs) saveStoredCycleLogs(data.cycleLogs);
         if (data.settings) saveStoredSettings(data.settings);
+        if (data.subscribers && Array.isArray(data.subscribers)) {
+          saveStoredSubscribers(data.subscribers);
+        }
 
         setImportStatus('✅ Backup restaurado com sucesso!');
         setTimeout(() => {
@@ -109,7 +127,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={handleExportJSON}
-                className="py-2.5 px-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs flex items-center justify-center gap-1.5 transition-all"
+                className="py-2.5 px-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
               >
                 <Download className="w-3.5 h-3.5" /> Backup JSON
               </button>
@@ -119,6 +137,16 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 className="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs border border-white/10 flex items-center justify-center gap-1.5 transition-all"
               >
                 <FileText className="w-3.5 h-3.5" /> Diário em CSV
+              </button>
+            </div>
+
+            <div className="pt-1">
+              <button
+                onClick={handleExportSubscribers}
+                className="w-full py-2.5 px-3 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-200 font-semibold text-xs border border-amber-400/30 flex items-center justify-center gap-2 transition-all shadow-sm"
+              >
+                <Mail className="w-3.5 h-3.5 text-amber-300" />
+                <span>Baixar Lista de E-mails ({subscribers.length}) (.CSV)</span>
               </button>
             </div>
           </div>

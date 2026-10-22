@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import type { UserSettings } from '../types';
-import { saveStoredSettings } from '../utils/storage';
+import { saveStoredSettings, getStoredSubscribers, exportSubscribersCSV } from '../utils/storage';
 import { t, type Language } from '../utils/i18n';
 import { getStoredGeminiKey, saveStoredGeminiKey, generateGeminiContent } from '../utils/gemini';
-import { Settings, Globe, MapPin, Bell, Compass, Sparkles, ExternalLink } from 'lucide-react';
+import { Settings, Globe, MapPin, Bell, Compass, Sparkles, ExternalLink, Mail } from 'lucide-react';
 
 interface SettingsModalProps {
   settings: UserSettings;
@@ -241,6 +241,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </label>
             </div>
+          </div>
+
+          {/* Email Newsletter Subscribers Export */}
+          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-white font-semibold flex items-center gap-1.5 text-xs">
+                <Mail className="w-3.5 h-3.5 text-amber-300" /> Newsletter & Inscritos Diários
+              </label>
+              <span className="text-[11px] text-amber-200/90 font-medium">
+                {getStoredSubscribers().length} {getStoredSubscribers().length === 1 ? 'inscrito' : 'inscritos'}
+              </span>
+            </div>
+            <p className="text-[11px] text-neutral-400">
+              Faça download da lista completa de assinantes do Diário Lunar para importar em plataformas de e-mail.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const csv = exportSubscribersCSV();
+                const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csv);
+                const a = document.createElement('a');
+                a.href = encodedUri;
+                a.download = `inscritos_diario_lunar_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+              }}
+              className="w-full py-2 px-3 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-200 font-semibold text-xs border border-amber-400/30 flex items-center justify-center gap-2 transition-all shadow-sm"
+            >
+              <Mail className="w-3.5 h-3.5 text-amber-300" />
+              <span>Baixar Lista de E-mails (.CSV)</span>
+            </button>
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-white/10">

@@ -64,6 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     {
       title: 'PRÁTICAS & RITUAIS',
       items: [
+        { id: 'oracle', label: 'Oráculo / Tarô', icon: Sparkles },
         { id: 'intentions', label: t('tabIntentions', lang), icon: Target },
         { id: 'rituals', label: t('tabRituals', lang), icon: Flame },
         { id: 'cycle', label: t('tabCycle', lang), icon: HeartPulse },

@@ -16,6 +16,7 @@ import { IntentionsTracker } from './components/IntentionsTracker';
 import { RitualsLibrary } from './components/RitualsLibrary';
 import { CycleTracker } from './components/CycleTracker';
 import { AnalyticsView } from './components/AnalyticsView';
+import { LunarOracle } from './components/LunarOracle';
 import { SettingsModal } from './components/SettingsModal';
 import { DayDetailsModal } from './components/DayDetailsModal';
 import { DataBackupModal } from './components/DataBackupModal';
@@ -126,6 +127,14 @@ export function App() {
 
             {activeTab === 'cycle' && (
               <CycleTracker settings={settings} astroData={astroData} />
+            )}
+
+            {activeTab === 'oracle' && (
+              <LunarOracle
+                settings={settings}
+                astroData={astroData}
+                onNavigateToJournal={() => setActiveTab('journal')}
+              />
             )}
 
             {activeTab === 'analytics' && <AnalyticsView settings={settings} />}

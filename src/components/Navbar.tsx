@@ -33,7 +33,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
-  astroData,
+  astroData: _astroData,
   settings,
   openSettingsModal,
   openBackupModal,
@@ -51,20 +51,36 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'journal', label: t('tabJournal', lang), icon: BookOpen },
   ];
 
-  // Secondary tools in the "Mais" dropdown
-  const secondaryNavItems = [
-    { id: 'biorhythm', label: 'Biorritmo Védico', icon: HeartPulse, category: 'Astrologia' },
-    { id: 'transits', label: 'Trânsitos Planetários', icon: Compass, category: 'Astrologia' },
-    { id: 'synastry', label: 'Sinastria de Casal', icon: HeartHandshake, category: 'Astrologia' },
-    { id: 'intentions', label: t('tabIntentions', lang), icon: Target, category: 'Práticas' },
-    { id: 'rituals', label: t('tabRituals', lang), icon: Flame, category: 'Práticas' },
-    { id: 'cycle', label: t('tabCycle', lang), icon: HeartPulse, category: 'Práticas' },
-    { id: 'analytics', label: t('tabAnalytics', lang), icon: BarChart3, category: 'Ferramentas' },
-    { id: 'widgets', label: 'Simulador de Widgets', icon: LayoutGrid, category: 'Ferramentas' },
+  // Secondary tools categorized in the "Mais" dropdown
+  const categorizedNavItems = [
+    {
+      title: 'ASTROLOGIA & MAPAS',
+      items: [
+        { id: 'biorhythm', label: 'Biorritmo Védico', icon: HeartPulse },
+        { id: 'transits', label: 'Trânsitos Planetários', icon: Compass },
+        { id: 'synastry', label: 'Sinastria de Casal', icon: HeartHandshake },
+      ],
+    },
+    {
+      title: 'PRÁTICAS & RITUAIS',
+      items: [
+        { id: 'intentions', label: t('tabIntentions', lang), icon: Target },
+        { id: 'rituals', label: t('tabRituals', lang), icon: Flame },
+        { id: 'cycle', label: t('tabCycle', lang), icon: HeartPulse },
+      ],
+    },
+    {
+      title: 'ANÁLISE & FERRAMENTAS',
+      items: [
+        { id: 'analytics', label: t('tabAnalytics', lang), icon: BarChart3 },
+        { id: 'widgets', label: 'Simulador de Widgets', icon: LayoutGrid },
+      ],
+    },
   ];
 
-  const isSecondaryActive = secondaryNavItems.some((item) => item.id === activeTab);
-  const activeSecondaryItem = secondaryNavItems.find((item) => item.id === activeTab);
+  const allSecondaryItems = categorizedNavItems.flatMap((c) => c.items);
+  const isSecondaryActive = allSecondaryItems.some((item) => item.id === activeTab);
+  const activeSecondaryItem = allSecondaryItems.find((item) => item.id === activeTab);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -148,57 +164,52 @@ export const Navbar: React.FC<NavbarProps> = ({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -8 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 mt-2 w-56 bg-[#1c1c1e] border border-white/15 rounded-2xl shadow-2xl p-2 z-50 backdrop-blur-3xl"
+                    className="absolute right-0 mt-2 w-64 bg-[#141419]/95 border border-white/15 rounded-2xl shadow-2xl p-2.5 z-50 backdrop-blur-3xl space-y-3"
                   >
-                    <div className="text-[10px] font-bold text-neutral-400 px-3 py-1 uppercase tracking-wider">
-                      Outros Módulos
-                    </div>
-                    <div className="space-y-0.5">
-                      {secondaryNavItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = activeTab === item.id;
-                        return (
-                          <motion.button
-                            key={item.id}
-                            onClick={() => {
-                              setActiveTab(item.id);
-                              setIsMoreOpen(false);
-                            }}
-                            whileHover={{ x: 3 }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                              isActive
-                                ? 'bg-white text-black font-semibold'
-                                : 'text-neutral-300 hover:bg-white/10 hover:text-white'
-                            }`}
-                          >
-                            <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-neutral-400'}`} />
-                            <span>{item.label}</span>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
+                    {categorizedNavItems.map((cat, idx) => (
+                      <div key={cat.title} className={idx > 0 ? 'pt-1.5 border-t border-white/10' : ''}>
+                        <div className="text-[10px] font-bold text-neutral-400 px-2.5 py-1 uppercase tracking-wider">
+                          {cat.title}
+                        </div>
+                        <div className="space-y-0.5 mt-1">
+                          {cat.items.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeTab === item.id;
+                            return (
+                              <motion.button
+                                key={item.id}
+                                onClick={() => {
+                                  setActiveTab(item.id);
+                                  setIsMoreOpen(false);
+                                }}
+                                whileHover={{ x: 3 }}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                                  isActive
+                                    ? 'bg-white text-black font-semibold shadow-md'
+                                    : 'text-neutral-300 hover:bg-white/10 hover:text-white'
+                                }`}
+                              >
+                                <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-amber-300/80'}`} />
+                                <span>{item.label}</span>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </nav>
 
-          {/* Lunar Status Badge & Quick Controls */}
+          {/* Clean Quick Controls */}
           <div className="flex items-center gap-2 text-xs">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-neutral-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-              <span className="font-semibold text-white">
-                {astroData.illumination}%
-              </span>
-              <span className="text-neutral-500">•</span>
-              <span>{astroData.zodiacSymbol} {astroData.zodiacSign}</span>
-            </div>
-
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={openBackupModal}
-              className="p-2 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 border border-white/10 transition-all"
+              className="p-2 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-all"
               title="Backup & Exportação"
             >
               <Database className="w-4 h-4" />
@@ -208,10 +219,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={openSettingsModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-neutral-200 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-xs font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-xs font-medium"
             >
-              <MapPin className="w-3.5 h-3.5 text-neutral-400" />
-              <span className="max-w-[80px] truncate text-[11px]">
+              <MapPin className="w-3.5 h-3.5 text-amber-300/80" />
+              <span className="max-w-[90px] truncate text-[11px]">
                 {settings.location.name}
               </span>
               <Settings className="w-3.5 h-3.5 text-neutral-400 ml-0.5" />
@@ -221,7 +232,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Mobile Navigation Scrollbar (Super Clean) */}
         <nav className="flex md:hidden items-center gap-1 overflow-x-auto py-2 no-scrollbar border-t border-white/5 text-xs">
-          {[...mainNavItems, ...secondaryNavItems].map((item) => {
+          {[...mainNavItems, ...allSecondaryItems].map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (

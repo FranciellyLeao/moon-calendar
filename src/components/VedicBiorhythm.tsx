@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { AstronomyData, UserSettings } from '../types';
 import { calcFullVedicBiorhythm } from '../utils/vedicBiorhythm';
 import { Activity, Flame, Moon, Sparkles, HeartPulse, Brain, Zap, Shield, Clock, Calendar } from 'lucide-react';
@@ -13,6 +13,12 @@ export const VedicBiorhythmView: React.FC<VedicBiorhythmProps> = ({ settings, as
   const [birthDateInput, setBirthDateInput] = useState<string>(
     settings.natalChart?.birthDate || '1995-05-15'
   );
+
+  useEffect(() => {
+    if (settings.natalChart?.birthDate) {
+      setBirthDateInput(settings.natalChart.birthDate);
+    }
+  }, [settings.natalChart?.birthDate]);
 
   const birthDate = new Date(birthDateInput || '1995-05-15');
   const now = new Date();
@@ -183,25 +189,96 @@ export const VedicBiorhythmView: React.FC<VedicBiorhythmProps> = ({ settings, as
         </motion.div>
       </div>
 
-      {/* Classic 3-Phase Biological Sine Wave Cycles */}
+      {/* Interactive SVG Biorhythm Sine Waves (-7 to +7 days) */}
       <div className="bg-[#121218]/80 backdrop-blur-xl rounded-[28px] p-6 sm:p-7 border border-white/10 space-y-5 shadow-2xl">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
               <Activity className="w-5 h-5 text-amber-300" />
-              <span>Ondas dos Três Ciclos Biológicos</span>
+              <span>Ondas dos Três Ciclos Biológicos (15 Dias)</span>
             </h3>
             <p className="text-xs text-[#A1A1AA] mt-1 font-normal">
               Tendência geral hoje: <strong className="text-amber-200 font-semibold">{biorhythmScores.dominantTrend}</strong> ({biorhythmScores.overallScore}% Alinhamento).
             </p>
           </div>
 
-          <span className="px-3.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-neutral-300">
-            Média Geral: {biorhythmScores.overallScore}%
-          </span>
+          <div className="flex items-center gap-3 text-xs font-semibold">
+            <span className="flex items-center gap-1 text-red-400"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> Físico (23d)</span>
+            <span className="flex items-center gap-1 text-blue-400"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Emocional (28d)</span>
+            <span className="flex items-center gap-1 text-purple-400"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block" /> Intelectual (33d)</span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        {/* SVG Sine Wave Canvas */}
+        {(() => {
+          const daysRange = Array.from({ length: 15 }, (_, i) => i - 7);
+          const width = 600;
+          const height = 160;
+          const paddingX = 30;
+          const usableW = width - 2 * paddingX;
+          const midY = height / 2;
+          const maxAmp = 55;
+
+          const getCoords = (dayOffset: number, period: number) => {
+            const date = new Date(now.getTime() + dayOffset * 86400000);
+            const daysDiff = (date.getTime() - birthDate.getTime()) / 86400000;
+            const val = Math.sin((2 * Math.PI * daysDiff) / period);
+            const x = paddingX + ((dayOffset + 7) / 14) * usableW;
+            const y = midY - val * maxAmp;
+            return { x, y, val: Math.round(val * 100) };
+          };
+
+          const physPoints = daysRange.map((d) => getCoords(d, 23));
+          const emoPoints = daysRange.map((d) => getCoords(d, 28));
+          const intelPoints = daysRange.map((d) => getCoords(d, 33));
+
+          const makePath = (points: { x: number; y: number }[]) =>
+            points.reduce((acc, p, idx) => (idx === 0 ? `M ${p.x},${p.y}` : `${acc} L ${p.x},${p.y}`), '');
+
+          const todayPhys = physPoints[7];
+          const todayEmo = emoPoints[7];
+          const todayIntel = intelPoints[7];
+
+          return (
+            <div className="space-y-4">
+              <div className="w-full overflow-x-auto">
+                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[500px] overflow-visible">
+                  {/* Grid Lines */}
+                  <line x1={paddingX} y1={midY} x2={width - paddingX} y2={midY} stroke="rgba(255,255,255,0.1)" strokeDasharray="4 4" />
+                  <line x1={paddingX} y1={midY - maxAmp} x2={width - paddingX} y2={midY - maxAmp} stroke="rgba(255,255,255,0.04)" />
+                  <line x1={paddingX} y1={midY + maxAmp} x2={width - paddingX} y2={midY + maxAmp} stroke="rgba(255,255,255,0.04)" />
+
+                  {/* Today Vertical Guide */}
+                  <line x1={todayPhys.x} y1={10} x2={todayPhys.x} y2={height - 10} stroke="#FBBF24" strokeWidth="1.5" strokeDasharray="3 3" />
+                  <text x={todayPhys.x} y={12} fill="#FBBF24" fontSize="10" fontWeight="bold" textAnchor="middle">
+                    HOJE
+                  </text>
+
+                  {/* Wave Paths */}
+                  <path d={makePath(physPoints)} fill="none" stroke="#F87171" strokeWidth="2.5" strokeLinecap="round" />
+                  <path d={makePath(emoPoints)} fill="none" stroke="#60A5FA" strokeWidth="2.5" strokeLinecap="round" />
+                  <path d={makePath(intelPoints)} fill="none" stroke="#C084FC" strokeWidth="2.5" strokeLinecap="round" />
+
+                  {/* Today Dots */}
+                  <circle cx={todayPhys.x} cy={todayPhys.y} r="5" fill="#F87171" stroke="#FFFFFF" strokeWidth="1.5" className="drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]" />
+                  <circle cx={todayEmo.x} cy={todayEmo.y} r="5" fill="#60A5FA" stroke="#FFFFFF" strokeWidth="1.5" className="drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+                  <circle cx={todayIntel.x} cy={todayIntel.y} r="5" fill="#C084FC" stroke="#FFFFFF" strokeWidth="1.5" className="drop-shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
+                </svg>
+              </div>
+
+              {/* Days labels */}
+              <div className="flex justify-between text-[10px] text-neutral-400 font-medium px-2">
+                <span>-7 dias</span>
+                <span>-3 dias</span>
+                <span className="text-amber-300 font-bold">Hoje</span>
+                <span>+3 dias</span>
+                <span>+7 dias</span>
+              </div>
+            </div>
+          );
+        })()}
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-2 border-t border-white/10">
           {/* Physical Cycle (23 days) */}
           <div className="p-4 rounded-2xl bg-black/40 border border-white/5 space-y-2">
             <div className="flex justify-between items-center">

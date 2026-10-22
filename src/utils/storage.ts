@@ -130,6 +130,9 @@ export function getStoredSettings(): UserSettings {
 
 export function saveStoredSettings(settings: UserSettings): void {
   localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('moon_settings_updated', { detail: settings }));
+  }
 }
 
 export function getStoredJournal(): JournalEntry[] {

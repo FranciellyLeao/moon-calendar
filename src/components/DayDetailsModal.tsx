@@ -10,6 +10,8 @@ interface DayDetailsModalProps {
   date: Date | null;
   settings: UserSettings;
   onClose: () => void;
+  onOpenJournal?: (dateStr?: string) => void;
+  onOpenRituals?: (phase?: string) => void;
 }
 
 const PHASE_NAMES_PT: Record<string, string> = {
@@ -30,7 +32,13 @@ const RATING_STYLE: Record<string, string> = {
   challenging: 'bg-red-500/10 border-red-500/20 text-red-300',
 };
 
-export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({ date, settings, onClose }) => {
+export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
+  date,
+  settings,
+  onClose,
+  onOpenJournal,
+  onOpenRituals,
+}) => {
   if (!date) return null;
 
   const astroData = getAstronomyData(date, settings.location.lat, settings.location.lng);
@@ -228,11 +236,37 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({ date, settings
             </div>
           </div>
 
+          {/* Direct Action Buttons */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                if (onOpenJournal) onOpenJournal(date.toISOString().split('T')[0]);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-amber-300 transition-all"
+            >
+              <span>✍️</span> Registrar no Diário
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                if (onOpenRituals) onOpenRituals(astroData.phaseName);
+              }}
+              className="py-2.5 px-3 rounded-xl bg-white/10 text-white font-semibold text-xs border border-white/15 flex items-center justify-center gap-1.5 hover:bg-white/20 transition-all"
+            >
+              <span>🔮</span> Ver Ritual da Fase
+            </motion.button>
+          </div>
+
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={onClose}
-            className="w-full py-2.5 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all shadow-sm"
+            className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 font-medium text-xs transition-all border border-white/10"
           >
             Fechar
           </motion.button>

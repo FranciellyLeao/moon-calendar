@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { AstronomyData, UserSettings } from '../types';
+import { getStoredJournal, saveStoredJournal } from '../utils/storage';
+import type { AstronomyData, UserSettings, JournalEntry } from '../types';
 import { getDayActivityGuide } from '../utils/activityTiming';
 import { getMoonZodiacSign } from '../utils/astronomy';
 import {
@@ -67,8 +68,27 @@ export const LunarDashboard: React.FC<LunarDashboardProps> = ({
   const now = new Date();
   const [showFullSpecs, setShowFullSpecs] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isAffirmationSaved, setIsAffirmationSaved] = useState(false);
   const [emailSubscribed, setEmailSubscribed] = useState(false);
   const [emailInput, setEmailInput] = useState('');
+
+  const handleSaveAffirmationToJournal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const currentJournal = getStoredJournal();
+    const newEntry: JournalEntry = {
+      id: 'j-' + Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      title: `Intenção: ${todayAffirmation.theme}`,
+      content: `Afirmação Diária (${todayAffirmation.theme}):\n"${todayAffirmation.text}"\n\nReflexão: A Lua em ${astroData.zodiacSign} fortalece a harmonia interior.`,
+      moonPhase: astroData.phaseName,
+      moonSign: astroData.zodiacSign,
+      tags: ['Afirmação', todayAffirmation.theme],
+      isFavorite: true,
+    };
+    saveStoredJournal([newEntry, ...currentJournal]);
+    setIsAffirmationSaved(true);
+    setTimeout(() => setIsAffirmationSaved(false), 3000);
+  };
 
   const phaseCode = astroData.phaseCode;
   const phasePt = PHASE_NAMES_PT[astroData.phaseName] || astroData.phaseName;
@@ -282,6 +302,25 @@ export const LunarDashboard: React.FC<LunarDashboardProps> = ({
               <p className="text-xs sm:text-sm text-[#E5E7EB] leading-relaxed">
                 A Lua em {astroData.zodiacSign} fortalece a capacidade de harmonizar pensamento e sentimento. Mantenha seu espaço sagrado limpo hoje e direcione sua intenção com presença.
               </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveAffirmationToJournal}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-400/20 border border-amber-300/40 text-amber-200 hover:bg-amber-400 hover:text-black font-semibold text-xs transition-all shadow-md"
+                >
+                  {isAffirmationSaved ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                      <span>Salvo no Diário!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>✨ Salvar esta intenção no meu Diário</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -9,7 +9,7 @@ import { generateAINatalChartReading } from '../utils/gemini';
 import { generateOfflineNatalReading } from '../utils/astrologyEngine';
 import { resetSwissEphemeris } from '../utils/swissEphemeris';
 import {
-  Sparkles, Calendar, Clock, MapPin, Compass, Flame, Mountain,
+  Sparkles, Calendar, Clock, MapPin, Flame, Mountain,
   Wind, Droplets, Bot, Loader2, Cpu, Star, Grid3x3, ChevronDown, ChevronUp, Layers, Search, RefreshCw, Filter
 } from 'lucide-react';
 
@@ -102,6 +102,8 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
   const cx = 150, cy = 150;
   const outerR = 135, innerR = 100, coreR = 60, centerR = 20;
 
+  const [hoveredPlanet, setHoveredPlanet] = useState<PlanetPosition | null>(null);
+
   const getSvgRad = (longitude: number) => {
     const angle = chartAngle(longitude, ascendant);
     return (angle * Math.PI) / 180;
@@ -110,117 +112,169 @@ const ChartWheel: React.FC<{ planets: PlanetPosition[]; ascendant: number; cusps
   const radialLevels = getRadialLevels(planets);
 
   return (
-    <motion.svg
-      viewBox="0 0 300 300"
-      className="w-full h-full drop-shadow-[0_24px_50px_rgba(80,62,130,0.24)]"
-      initial={{ opacity: 0, scale: 0.92, rotate: -3 }}
-      animate={{ opacity: 1, scale: 1, rotate: 0 }}
-      transition={{ duration: 0.9, ease: EASE }}
-    >
-      {/* Outer zodiac ring */}
-      <circle cx={cx} cy={cy} r={outerR} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
-      <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-      <circle cx={cx} cy={cy} r={coreR} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="2 2" />
-      <circle cx={cx} cy={cy} r={centerR} fill="#0a0a0a" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
+    <div className="relative w-full h-full">
+      <motion.svg
+        viewBox="0 0 300 300"
+        className="w-full h-full drop-shadow-[0_24px_50px_rgba(80,62,130,0.24)]"
+        initial={{ opacity: 0, scale: 0.92, rotate: -3 }}
+        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+        transition={{ duration: 0.9, ease: EASE }}
+      >
+        {/* Outer zodiac ring */}
+        <circle cx={cx} cy={cy} r={outerR} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
+        <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
+        <circle cx={cx} cy={cy} r={coreR} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="2 2" />
+        <circle cx={cx} cy={cy} r={centerR} fill="#0a0a0a" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
 
-      {/* House Cusp lines */}
-      {cusps.map((cuspLng, i) => {
-        const rad = getSvgRad(cuspLng);
-        const x1 = cx + coreR * Math.cos(rad);
-        const y1 = cy - coreR * Math.sin(rad);
-        const x2 = cx + outerR * Math.cos(rad);
-        const y2 = cy - outerR * Math.sin(rad);
-        const isAxis = i === 0 || i === 9; // ASC (House 1) or MC (House 10)
-        return (
-          <line
-            key={i}
-            x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke={isAxis ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.12)"}
-            strokeWidth={isAxis ? 1.5 : 0.8}
-            strokeDasharray={isAxis ? undefined : "3 3"}
-          />
-        );
-      })}
+        {/* House Cusp lines */}
+        {cusps.map((cuspLng, i) => {
+          const rad = getSvgRad(cuspLng);
+          const x1 = cx + coreR * Math.cos(rad);
+          const y1 = cy - coreR * Math.sin(rad);
+          const x2 = cx + outerR * Math.cos(rad);
+          const y2 = cy - outerR * Math.sin(rad);
+          const isAxis = i === 0 || i === 9; // ASC (House 1) or MC (House 10)
+          return (
+            <line
+              key={i}
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={isAxis ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.12)"}
+              strokeWidth={isAxis ? 1.5 : 0.8}
+              strokeDasharray={isAxis ? undefined : "3 3"}
+            />
+          );
+        })}
 
-      {/* Internal Aspect Chords */}
-      {aspects.slice(0, 15).map((asp, idx) => {
-        const p1 = planets.find(p => p.planet === asp.planet1);
-        const p2 = planets.find(p => p.planet === asp.planet2);
-        if (!p1 || !p2) return null;
+        {/* Internal Aspect Chords with Interactive Highlight */}
+        {aspects.slice(0, 25).map((asp, idx) => {
+          const p1 = planets.find(p => p.planet === asp.planet1);
+          const p2 = planets.find(p => p.planet === asp.planet2);
+          if (!p1 || !p2) return null;
 
-        const rad1 = getSvgRad(p1.longitude);
-        const rad2 = getSvgRad(p2.longitude);
+          const rad1 = getSvgRad(p1.longitude);
+          const rad2 = getSvgRad(p2.longitude);
 
-        const x1 = cx + coreR * Math.cos(rad1);
-        const y1 = cy - coreR * Math.sin(rad1);
-        const x2 = cx + coreR * Math.cos(rad2);
-        const y2 = cy - coreR * Math.sin(rad2);
+          const x1 = cx + coreR * Math.cos(rad1);
+          const y1 = cy - coreR * Math.sin(rad1);
+          const x2 = cx + coreR * Math.cos(rad2);
+          const y2 = cy - coreR * Math.sin(rad2);
 
-        const strokeColor = asp.nature === 'harmonious'
-          ? 'rgba(52,211,153,0.35)'
-          : asp.nature === 'tense'
-          ? 'rgba(248,113,113,0.35)'
-          : 'rgba(255,255,255,0.2)';
+          const isConnectedToHovered = hoveredPlanet && (asp.planet1 === hoveredPlanet.planet || asp.planet2 === hoveredPlanet.planet);
+          const isDimmed = hoveredPlanet && !isConnectedToHovered;
 
-        return (
-          <line
-            key={idx}
-            x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke={strokeColor}
-            strokeWidth={asp.isMinor ? 0.6 : 1}
-            strokeDasharray={asp.isMinor ? "2 2" : undefined}
-          />
-        );
-      })}
+          const baseColor = asp.nature === 'harmonious'
+            ? 'rgba(52,211,153,0.35)'
+            : asp.nature === 'tense'
+            ? 'rgba(248,113,113,0.35)'
+            : 'rgba(255,255,255,0.2)';
 
-      {/* Zodiac sign symbols in outer ring */}
-      {['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'].map((sym, i) => {
-        const signCenterLng = i * 30 + 15;
-        const rad = getSvgRad(signCenterLng);
-        const r = (outerR + innerR) / 2;
-        return (
-          <text key={i} x={cx + r * Math.cos(rad)} y={cy - r * Math.sin(rad)}
-            textAnchor="middle" dominantBaseline="central"
-            fill="rgba(255,255,255,0.5)" fontSize="10" fontWeight="medium">
-            {sym}
-          </text>
-        );
-      })}
+          const strokeColor = isConnectedToHovered
+            ? (asp.nature === 'harmonious' ? '#34D399' : asp.nature === 'tense' ? '#F87171' : '#FBBF24')
+            : isDimmed
+            ? 'rgba(255,255,255,0.04)'
+            : baseColor;
 
-      {/* Planets with radial level staggering to avoid collision */}
-      {planets.map((planet, i) => {
-        const rad = getSvgRad(planet.longitude);
-        const level = radialLevels[i] || 0;
-        const r = innerR - 14 - level * 11;
-        const px = cx + r * Math.cos(rad);
-        const py = cy - r * Math.sin(rad);
-        return (
-          <motion.g
-            key={planet.planet}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ ...softSpring, delay: 0.18 + i * 0.03 }}
-            style={{ transformOrigin: `${px}px ${py}px` }}
-          >
-            <circle cx={px} cy={py} r="8.5" fill="#1c1c1e" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
-            <text x={px} y={py} textAnchor="middle" dominantBaseline="central"
-              fill={planet.isRetrograde ? '#ff9f0a' : '#ffffff'} fontSize="7.5" fontWeight="bold">
-              {planet.symbol}
+          const strokeWidth = isConnectedToHovered ? 2.5 : (asp.isMinor ? 0.6 : 1);
+
+          return (
+            <line
+              key={idx}
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={strokeColor}
+              strokeWidth={strokeWidth}
+              strokeDasharray={asp.isMinor && !isConnectedToHovered ? "2 2" : undefined}
+            />
+          );
+        })}
+
+        {/* Zodiac sign symbols in outer ring */}
+        {['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'].map((sym, i) => {
+          const signCenterLng = i * 30 + 15;
+          const rad = getSvgRad(signCenterLng);
+          const r = (outerR + innerR) / 2;
+          return (
+            <text key={i} x={cx + r * Math.cos(rad)} y={cy - r * Math.sin(rad)}
+              textAnchor="middle" dominantBaseline="central"
+              fill="rgba(255,255,255,0.5)" fontSize="10" fontWeight="medium">
+              {sym}
             </text>
-          </motion.g>
-        );
-      })}
+          );
+        })}
 
-      {/* Horizontal ASC Axis line (Left = ASC) */}
-      <line x1={cx - outerR} y1={cy} x2={cx + outerR} y2={cy}
-        stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeDasharray="4 2" />
-      <text x={cx - outerR + 6} y={cy - 5} fill="white" fontSize="8" fontWeight="bold">ASC</text>
-      <text x={cx + outerR - 22} y={cy - 5} fill="rgba(255,255,255,0.5)" fontSize="7">DSC</text>
+        {/* Planets with radial level staggering & Interactive Hover */}
+        {planets.map((planet, i) => {
+          const rad = getSvgRad(planet.longitude);
+          const level = radialLevels[i] || 0;
+          const r = innerR - 14 - level * 11;
+          const px = cx + r * Math.cos(rad);
+          const py = cy - r * Math.sin(rad);
+          const isHovered = hoveredPlanet?.planet === planet.planet;
 
-      {/* Center Label */}
-      <text x={cx} y={cy - 3} textAnchor="middle" fill="white" fontSize="6.5" fontWeight="bold">SWISS EPHEMERIS</text>
-      <text x={cx} y={cy + 5} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="5.5">100% ASTRO.COM</text>
-    </motion.svg>
+          return (
+            <motion.g
+              key={planet.planet}
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: isHovered ? 1.3 : 1 }}
+              transition={{ ...softSpring, delay: 0.18 + i * 0.03 }}
+              style={{ transformOrigin: `${px}px ${py}px`, cursor: 'pointer' }}
+              onMouseEnter={() => setHoveredPlanet(planet)}
+              onMouseLeave={() => setHoveredPlanet(null)}
+              onClick={() => setHoveredPlanet(hoveredPlanet?.planet === planet.planet ? null : planet)}
+            >
+              <circle
+                cx={px} cy={py} r={isHovered ? "11" : "8.5"}
+                fill={isHovered ? "#FBBF24" : "#1c1c1e"}
+                stroke={isHovered ? "#FFFFFF" : "rgba(255,255,255,0.4)"}
+                strokeWidth={isHovered ? "2" : "1"}
+                className={isHovered ? "drop-shadow-[0_0_12px_rgba(251,191,36,0.9)]" : ""}
+              />
+              <text x={px} y={py} textAnchor="middle" dominantBaseline="central"
+                fill={isHovered ? "#000000" : (planet.isRetrograde ? '#ff9f0a' : '#ffffff')}
+                fontSize={isHovered ? "8.5" : "7.5"} fontWeight="bold">
+                {planet.symbol}
+              </text>
+            </motion.g>
+          );
+        })}
+
+        {/* Horizontal ASC Axis line (Left = ASC) */}
+        <line x1={cx - outerR} y1={cy} x2={cx + outerR} y2={cy}
+          stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeDasharray="4 2" />
+        <text x={cx - outerR + 6} y={cy - 5} fill="white" fontSize="8" fontWeight="bold">ASC</text>
+        <text x={cx + outerR - 22} y={cy - 5} fill="rgba(255,255,255,0.5)" fontSize="7">DSC</text>
+
+        {/* Center Label */}
+        <text x={cx} y={cy - 3} textAnchor="middle" fill="white" fontSize="6.5" fontWeight="bold">SWISS EPHEMERIS</text>
+        <text x={cx} y={cy + 5} textAnchor="middle" fill="rgba(255,255,255,0.6)" fontSize="5.5">100% ASTRO.COM</text>
+      </motion.svg>
+
+      {/* Floating Glassmorphism Planet Tooltip */}
+      <AnimatePresence>
+        {hoveredPlanet && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-[#141419]/95 border border-amber-300/40 backdrop-blur-xl px-4 py-2 rounded-2xl shadow-2xl pointer-events-none text-center z-30 space-y-0.5"
+          >
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-white">
+              <span className="text-amber-300 text-sm">{hoveredPlanet.symbol}</span>
+              <span className="capitalize">{hoveredPlanet.planet}</span>
+              {hoveredPlanet.isRetrograde && (
+                <span className="text-[10px] text-amber-400 font-extrabold px-1 rounded bg-amber-400/20">Rx</span>
+              )}
+            </div>
+            <div className="text-[11px] text-neutral-300 font-medium">
+              {hoveredPlanet.sign} • Casa {hoveredPlanet.house}
+            </div>
+            <div className="text-[10px] text-amber-200/90 font-semibold">
+              {formatDMS(hoveredPlanet.degree)} (° ' ")
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -239,6 +293,7 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
     initialChart?.houseSystem ?? 'Placidus'
   );
   const [showMinorAspects, setShowMinorAspects] = useState<boolean>(false);
+  const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
   const [isCalculating, setIsCalculating] = useState<boolean>(!initialChart);
   const [calculationError, setCalculationError] = useState<string | null>(null);
@@ -252,6 +307,24 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
   const [expandedAspect, setExpandedAspect] = useState<number | null>(null);
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (settings.natalChart) {
+      setBirthDate(settings.natalChart.birthDate || '1995-05-15');
+      setBirthTime(settings.natalChart.birthTime || '08:30');
+      setBirthCity(settings.natalChart.birthCity || 'São Paulo');
+      if (settings.natalChart.lat) setLat(settings.natalChart.lat);
+      if (settings.natalChart.lng) setLng(settings.natalChart.lng);
+      if (settings.natalChart.utcOffset) setUtcOffset(settings.natalChart.utcOffset);
+    }
+  }, [settings.natalChart]);
+
+  // Auto-trigger natal chart reading synthesis post-calculation
+  useEffect(() => {
+    if (chart && !aiReading && !isGeneratingAI) {
+      handleGenerateNatalReading('offline');
+    }
+  }, [chart]);
 
   useEffect(() => {
     if (initialChart) return;
@@ -571,126 +644,40 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
       )}
       </AnimatePresence>
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Form + Controls */}
-        <div className="lg:col-span-5 space-y-5">
-          <div className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-6 border border-white/[0.08] space-y-4 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Compass className="w-4 h-4 text-white" /> Dados de Nascimento Exatos
-            </h2>
-
-            <form onSubmit={handleCalculate} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block text-neutral-400 mb-1 font-medium flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> Data de Nascimento
-                </label>
-                <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" required />
+      {/* Main 2-Column Workspace Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Sticky Mandala Wheel (5 cols) */}
+        <div className="lg:col-span-5 lg:sticky lg:top-20 space-y-5">
+          {fullChart && (
+            <motion.section variants={fadeUp} className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(145,119,214,0.12),transparent_48%),#17141e] rounded-[34px] p-5 sm:p-7 border border-white/[0.08] shadow-[0_26px_80px_rgba(0,0,0,0.24)]">
+              <h2 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-3 text-center">
+                Mandala Astrológica — Passe o mouse nos planetas
+              </h2>
+              <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto">
+                <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} cusps={fullChart.houseCusps} aspects={filteredAspects} />
               </div>
-
-              <div>
-                <label className="block text-neutral-400 mb-1 font-medium flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" /> Hora Local Exata (HH:MM)
-                </label>
-                <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" required />
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 mb-1 font-medium flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Cidade de Nascimento</span>
-                  {isGeocoding && <span className="text-[10px] text-amber-300 animate-pulse flex items-center gap-1"><Search className="w-3 h-3" /> Buscando...</span>}
-                </label>
-                <input
-                  type="text"
-                  value={birthCity}
-                  onChange={(e) => handleCityChange(e.target.value)}
-                  placeholder="Ex: São Paulo, Balneário Camboriú..."
-                  list="city-options"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white"
-                  required
-                />
-                <datalist id="city-options">
-                  {CITIES_DATABASE.map(c => (
-                    <option key={c.name} value={c.name}>{c.name} ({c.country})</option>
-                  ))}
-                </datalist>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-neutral-400 mb-1 font-medium text-[11px]">Fuso UTC</label>
-                  <input
-                    type="number"
-                    value={utcOffset}
-                    step="0.5"
-                    min="-12"
-                    max="14"
-                    onChange={(e) => setUtcOffset(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-neutral-400 mb-1 font-medium text-[11px] flex items-center gap-1">
-                    <Layers className="w-3 h-3" /> Sistema Casas
-                  </label>
-                  <select
-                    value={houseSystem}
-                    onChange={(e) => setHouseSystem(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none text-xs"
-                  >
-                    <option value="Placidus">Placidus (Astro.com)</option>
-                    <option value="Equal">Casas Iguais</option>
-                    <option value="WholeSign">Whole Sign</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-[10px] text-neutral-400 space-y-1">
-                <div className="flex justify-between">
-                  <span>Latitude Exata:</span> <strong className="text-neutral-200">{lat.toFixed(4)}°</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>Longitude Exata:</span> <strong className="text-neutral-200">{lng.toFixed(4)}°</strong>
-                </div>
-              </div>
-
-              <motion.button type="submit"
-                disabled={isCalculating}
-                whileHover={isCalculating ? undefined : { y: -2, scale: 1.005 }}
-                whileTap={isCalculating ? undefined : { scale: 0.985 }}
-                transition={softSpring}
-                className="w-full py-3.5 rounded-[16px] bg-[#f6f0e8] hover:bg-white text-[#15121b] font-semibold text-xs transition-colors mt-2 shadow-[0_10px_30px_rgba(246,240,232,0.12)] disabled:opacity-50 disabled:cursor-wait">
-                {isCalculating ? (
-                  <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Calculando...</span>
-                ) : (
-                  'Recalcular Mapa Astral'
-                )}
-              </motion.button>
-            </form>
-          </div>
+            </motion.section>
+          )}
 
           {/* Elements Distribution */}
-          <div className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-5 border border-white/[0.08] space-y-4 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
-            <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+          <div className="bg-[#17141e]/92 backdrop-blur-xl rounded-[30px] p-5 border border-white/[0.08] space-y-3.5 shadow-[0_18px_55px_rgba(0,0,0,0.18)]">
+            <h3 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
               Distribuição dos Elementos
             </h3>
-            <div className="space-y-2.5 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-xs">
               {[
                 { label: '🔥 Fogo', val: chart.elements.fire, icon: Flame },
                 { label: '⛰️ Terra', val: chart.elements.earth, icon: Mountain },
                 { label: '💨 Ar', val: chart.elements.air, icon: Wind },
                 { label: '💧 Água', val: chart.elements.water, icon: Droplets },
               ].map(({ label, val }) => (
-                <div key={label}>
-                  <div className="flex justify-between text-neutral-300 mb-1">
+                <div key={label} className="p-2.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                  <div className="flex justify-between text-neutral-300 text-[11px]">
                     <span>{label}</span>
-                    <span>{val}%</span>
+                    <span className="font-bold text-white">{val}%</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-black overflow-hidden">
-                    <div className="h-full bg-white transition-all duration-700" style={{ width: `${val}%` }} />
+                    <div className="h-full bg-white transition-all duration-700 rounded-full" style={{ width: `${val}%` }} />
                   </div>
                 </div>
               ))}
@@ -698,19 +685,122 @@ export const AstrologyChart: React.FC<AstrologyChartProps> = ({ settings, onSave
           </div>
         </div>
 
-        {/* Right Wheel + Tabs */}
+        {/* Right Column: Tab Inspector & Collapsible Birth Bar (7 cols) */}
         <div className="lg:col-span-7 space-y-5">
-          {/* Wheel Visual */}
-          {fullChart && (
-            <motion.section variants={fadeUp} className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_30%,rgba(145,119,214,0.12),transparent_48%),#17141e] rounded-[34px] p-5 sm:p-7 border border-white/[0.08] shadow-[0_26px_80px_rgba(0,0,0,0.24)]">
-              <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 text-center">
-                Roda Zodiacal — Ascendente a Oeste / 9 horas
-              </h2>
-              <div className="relative w-64 h-64 sm:w-72 sm:h-72 mx-auto">
-                <ChartWheel planets={fullChart.tropical} ascendant={fullChart.ascendant} cusps={fullChart.houseCusps} aspects={filteredAspects} />
+          {/* Collapsible Birth Bar */}
+          <div className="bg-[#17141e]/92 backdrop-blur-xl rounded-[24px] border border-white/[0.08] overflow-hidden shadow-lg">
+            <div
+              onClick={() => setIsFormOpen(!isFormOpen)}
+              className="p-4 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-xs text-white font-medium">
+                <MapPin className="w-4 h-4 text-amber-300" />
+                <span>
+                  <strong>{birthCity}</strong> · {birthDate} às {birthTime} ({houseSystem})
+                </span>
               </div>
-            </motion.section>
-          )}
+              <div className="flex items-center gap-1 text-xs text-amber-300 font-semibold">
+                <span>{isFormOpen ? 'Ocultar' : 'Editar Dados'}</span>
+                {isFormOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {isFormOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="px-5 pb-5 pt-2 border-t border-white/10"
+                >
+                  <form onSubmit={handleCalculate} className="space-y-3.5 text-xs">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-neutral-400 mb-1 font-medium flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5" /> Data de Nascimento
+                        </label>
+                        <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" required />
+                      </div>
+
+                      <div>
+                        <label className="block text-neutral-400 mb-1 font-medium flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" /> Hora Local Exata (HH:MM)
+                        </label>
+                        <input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white" required />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-neutral-400 mb-1 font-medium flex items-center justify-between">
+                        <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> Cidade de Nascimento</span>
+                        {isGeocoding && <span className="text-[10px] text-amber-300 animate-pulse flex items-center gap-1"><Search className="w-3 h-3" /> Buscando...</span>}
+                      </label>
+                      <input
+                        type="text"
+                        value={birthCity}
+                        onChange={(e) => handleCityChange(e.target.value)}
+                        placeholder="Ex: São Paulo, Balneário Camboriú..."
+                        list="city-options"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none focus:border-white"
+                        required
+                      />
+                      <datalist id="city-options">
+                        {CITIES_DATABASE.map(c => (
+                          <option key={c.name} value={c.name}>{c.name} ({c.country})</option>
+                        ))}
+                      </datalist>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-neutral-400 mb-1 font-medium text-[11px]">Fuso UTC</label>
+                        <input
+                          type="number"
+                          value={utcOffset}
+                          step="0.5"
+                          min="-12"
+                          max="14"
+                          onChange={(e) => setUtcOffset(Number(e.target.value))}
+                          className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-neutral-400 mb-1 font-medium text-[11px] flex items-center gap-1">
+                          <Layers className="w-3 h-3" /> Sistema Casas
+                        </label>
+                        <select
+                          value={houseSystem}
+                          onChange={(e) => setHouseSystem(e.target.value as any)}
+                          className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/10 text-white focus:outline-none text-xs"
+                        >
+                          <option value="Placidus">Placidus (Astro.com)</option>
+                          <option value="Equal">Casas Iguais</option>
+                          <option value="WholeSign">Whole Sign</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <motion.button type="submit"
+                      disabled={isCalculating}
+                      whileHover={isCalculating ? undefined : { y: -2, scale: 1.005 }}
+                      whileTap={isCalculating ? undefined : { scale: 0.985 }}
+                      transition={softSpring}
+                      className="w-full py-3 rounded-xl bg-[#f6f0e8] hover:bg-white text-[#15121b] font-semibold text-xs transition-colors shadow-md disabled:opacity-50 disabled:cursor-wait">
+                      {isCalculating ? (
+                        <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Recalculando...</span>
+                      ) : (
+                        'Confirmar e Atualizar Mapa'
+                      )}
+                    </motion.button>
+                  </form>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Tab Selector */}
           <motion.div variants={fadeUp} className="flex items-center gap-1.5 bg-[#17141e]/90 rounded-[22px] p-1.5 border border-white/[0.08] backdrop-blur-xl">

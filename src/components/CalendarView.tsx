@@ -117,13 +117,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-[#121218]/90 backdrop-blur-xl rounded-[28px] p-4 sm:p-5 border border-white/10 flex flex-wrap items-center justify-between gap-4 shadow-xl"
+        className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/[0.06] pt-1"
       >
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-amber-400/10 text-amber-300 border border-amber-400/20">
+          <div className="w-9 h-9 rounded-full bg-white/[0.04] text-[#E6CA65] flex items-center justify-center">
             <CalendarIcon className="w-4 h-4" />
           </div>
-          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-light text-white tracking-tight">
             {currentDate.toLocaleDateString(lang, { month: 'long', year: 'numeric' })}
           </h2>
         </div>
@@ -131,10 +131,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowVedicBiorhythm(!showVedicBiorhythm)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all ${
               showVedicBiorhythm
-                ? 'bg-amber-400/20 text-amber-200 border-amber-400/35 shadow-[0_0_12px_rgba(251,191,36,0.15)]'
-                : 'bg-white/5 text-neutral-400 border-white/10 hover:text-white'
+                ? 'bg-amber-400/20 text-amber-200 border border-amber-400/35 shadow-[0_0_12px_rgba(251,191,36,0.15)]'
+                : 'bg-white/[0.04] text-neutral-400 hover:text-white'
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
@@ -144,7 +144,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleToday}
-            className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-medium border border-white/10 transition-all"
+            className="px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white text-xs font-medium transition-all"
           >
             {t('todayButton', lang)}
           </motion.button>
@@ -152,7 +152,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handlePrevMonth}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all"
+            className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white transition-all"
           >
             <ChevronLeft className="w-4 h-4" />
           </motion.button>
@@ -160,7 +160,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleNextMonth}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all"
+            className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white transition-all"
           >
             <ChevronRight className="w-4 h-4" />
           </motion.button>
@@ -172,7 +172,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="bg-[#121218]/90 backdrop-blur-xl rounded-[24px] p-4 border border-white/10 space-y-3 shadow-lg"
+        className="space-y-3 pb-4 border-b border-white/[0.06]"
       >
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           <span className="text-neutral-400 text-xs font-medium whitespace-nowrap mr-1">
@@ -182,10 +182,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             <button
               key={f.id}
               onClick={() => setActivityFilter(f.id as ActivityCategory | 'all')}
-              className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all border ${
+              className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                 activityFilter === f.id
-                  ? 'bg-gradient-to-r from-[#fbe396] to-[#e5c158] text-[#15111b] border-amber-300 font-bold shadow-md'
-                  : 'bg-white/5 text-neutral-300 hover:text-white border-white/5'
+                  ? 'bg-gradient-to-r from-[#fbe396] to-[#e5c158] text-[#15111b] font-bold shadow-md'
+                  : 'bg-white/[0.04] text-neutral-300 hover:text-white'
               }`}
             >
               {f.emoji} {f.label}
@@ -193,7 +193,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
           ))}
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pt-1 border-t border-white/5">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pt-1">
           <span className="text-neutral-400 text-xs font-medium whitespace-nowrap mr-1">
             Fase da Lua:
           </span>
@@ -206,10 +206,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
             <button
               key={f.id}
               onClick={() => setFilterPhase(f.id as any)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all border ${
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                 filterPhase === f.id
-                  ? 'bg-white/15 text-white border-white/30 font-semibold'
-                  : 'bg-white/5 text-neutral-400 hover:text-white border-white/5'
+                  ? 'bg-white/20 text-white font-semibold'
+                  : 'bg-white/[0.04] text-neutral-400 hover:text-white'
               }`}
             >
               {f.label}
@@ -219,9 +219,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
       </motion.div>
 
       {/* Days of Week Header */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-neutral-400">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-neutral-400 py-1">
         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-          <div key={d} className="py-2 bg-white/5 rounded-xl border border-white/5">
+          <div key={d} className="py-1">
             {d}
           </div>
         ))}
@@ -230,7 +230,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
       {/* Monthly Grid */}
       <div className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: startingDayOfWeek }).map((_, idx) => (
-          <div key={`blank-${idx}`} className="h-20 sm:h-24 rounded-2xl bg-white/2 opacity-10" />
+          <div key={`blank-${idx}`} className="h-20 sm:h-24 rounded-2xl bg-white/[0.01] opacity-10" />
         ))}
 
         {Array.from({ length: daysInMonth }).map((_, idx) => {
@@ -264,8 +264,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ settings, openDayDet
                   : isBestDay && activityFilter !== 'all'
                   ? 'bg-green-500/10 border-green-500/40 hover:border-green-500/60'
                   : isMatchFilter
-                  ? 'bg-[#121218]/90 hover:bg-white/10 border-white/10'
-                  : 'bg-[#121218]/50 opacity-25 hover:opacity-60 border-white/5'
+                  ? 'bg-white/[0.03] hover:bg-white/[0.07] border-white/[0.05]'
+                  : 'bg-white/[0.01] opacity-25 hover:opacity-60 border-white/[0.02]'
               }`}
             >
               {/* Header inside cell */}

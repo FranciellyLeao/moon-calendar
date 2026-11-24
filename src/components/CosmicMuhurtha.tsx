@@ -1,7 +1,6 @@
 import React from 'react';
 import type { AstronomyData, UserSettings } from '../types';
 import { Sparkles, AlertTriangle, ShieldCheck, Sun, Briefcase, MessageSquare, Feather, Bed } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 interface CosmicMuhurthaProps {
   settings: UserSettings;
@@ -121,17 +120,17 @@ export const CosmicMuhurtha: React.FC<CosmicMuhurthaProps> = ({
   };
 
   return (
-    <div className="glass-panel rounded-3xl p-6 sm:p-7 space-y-5 border border-white/10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-4">
+    <div className="relative space-y-5 pt-2 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-4">
         <div>
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-300">
             <Sun className="w-3.5 h-3.5 text-amber-300" />
             <span>Timing Cósmico • Muhurtha Diário</span>
           </div>
-          <h3 className="text-lg font-bold text-white mt-0.5">
+          <h3 className="text-lg font-light text-white mt-1 tracking-tight">
             Janelas Propícias de Ação & Pausa
           </h3>
-          <p className="text-xs text-neutral-300">
+          <p className="text-xs text-neutral-400">
             Horários calculados a partir da transição solar-lunar e regências planetárias de hoje.
           </p>
         </div>
@@ -144,69 +143,66 @@ export const CosmicMuhurtha: React.FC<CosmicMuhurthaProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="divide-y divide-white/[0.06] pt-1">
         {windows.map((win) => {
           const active = isWindowActive(win);
           const Icon = win.icon;
 
           return (
-            <motion.div
+            <div
               key={win.id}
-              whileHover={{ y: -2 }}
-              transition={{ duration: 0.2 }}
-              className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-3 ${
-                active
-                  ? 'bg-amber-400/[0.07] border-amber-400/40 shadow-[0_4px_20px_rgba(212,175,55,0.08)]'
-                  : 'bg-white/[0.02] border-white/5 hover:border-white/10'
+              className={`py-4 sm:py-5 flex flex-col md:flex-row md:items-start justify-between gap-4 transition-colors ${
+                active ? 'bg-amber-400/[0.03] -mx-4 px-4 rounded-2xl' : ''
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                      active
-                        ? 'bg-amber-400/20 text-amber-300'
-                        : 'bg-white/5 text-neutral-400'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">
+              <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                <div
+                  className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                    active
+                      ? 'bg-amber-400/20 text-amber-300 ring-2 ring-amber-400/30'
+                      : 'bg-white/[0.04] text-neutral-400'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-sm sm:text-base font-medium text-white leading-tight">
                       {win.title}
                     </h4>
-                    <span className="text-[11px] font-mono text-neutral-400">
-                      {win.startTime} – {win.endTime}
+                    {active ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 text-[10px] font-semibold tracking-wide">
+                        <Sparkles className="w-3 h-3 text-amber-300" />
+                        <span>Agora</span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-neutral-400 font-medium">
+                        {win.energyLabel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-light">
+                    {win.recommendation}
+                  </p>
+                  <div className="flex items-center gap-3 text-[11px] text-neutral-400 pt-1">
+                    <span className="flex items-center gap-1 text-[#E6CA65]/90">
+                      <ShieldCheck className="w-3 h-3 text-[#E6CA65]" />
+                      <span>Regência: <strong className="text-neutral-200 font-medium">{win.planetaryRuler}</strong></span>
                     </span>
                   </div>
                 </div>
-
-                {active ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/40 text-[10px] font-bold uppercase tracking-wider animate-pulse-soft">
-                    <Sparkles className="w-3 h-3 text-amber-300" />
-                    <span>Janela Ativa</span>
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-neutral-500 font-mono">
-                    {win.planetaryRuler}
-                  </span>
-                )}
               </div>
 
-              <p className="text-xs text-neutral-300 leading-relaxed">
-                {win.recommendation}
-              </p>
-
-              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/5 text-neutral-400">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Regência: <strong className="text-neutral-200">{win.planetaryRuler}</strong></span>
+              {/* Time Window column */}
+              <div className="shrink-0 flex md:flex-col items-center md:items-end justify-between md:justify-start gap-1 pl-12 md:pl-0">
+                <span className="text-xs sm:text-base font-semibold font-mono text-white">
+                  {win.startTime} – {win.endTime}
                 </span>
-                <span className="text-amber-200/90 font-medium">
-                  {win.energyLabel}
+                <span className="text-[10px] uppercase tracking-wider text-neutral-400">
+                  {win.category}
                 </span>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>

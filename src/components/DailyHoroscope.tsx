@@ -45,57 +45,57 @@ export const DailyHoroscope: React.FC<DailyHoroscopeProps> = ({ settings, astroD
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header Banner */}
-      <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto pt-2 pb-8">
+      {/* Editorial Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-6 border-b border-white/[0.06]">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-neutral-300 text-xs font-medium mb-3">
-            <Sun className="w-3.5 h-3.5 text-white" /> Previsão Astrológica
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] text-[#E6CA65] text-xs font-medium mb-2">
+            <Sun className="w-3.5 h-3.5 text-[#E6CA65]" /> Previsão Astrológica
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-light text-white tracking-tight">
             Horóscopo & Energia Celestial
           </h1>
-          <p className="text-sm text-neutral-400 max-w-xl mt-1">
+          <p className="text-xs sm:text-sm text-neutral-400 max-w-xl mt-1">
             Orientações diárias alinhadas às fases da lua e signos zodiacais.
           </p>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-start md:items-end gap-2.5">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => handleGenerateHoroscope('offline')}
               disabled={isGeneratingAI}
-              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs border border-white/10 flex items-center gap-2 transition-all"
+              className="px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 hover:text-white font-medium text-xs transition-all flex items-center gap-2"
             >
-              <Cpu className="w-4 h-4 text-neutral-300" /> Motor Interno
+              <Cpu className="w-3.5 h-3.5 text-neutral-400" /> Motor Interno
             </button>
 
             <button
               onClick={() => handleGenerateHoroscope('gemini')}
               disabled={isGeneratingAI}
-              className="px-4 py-2 rounded-xl bg-white hover:bg-neutral-200 text-black font-semibold text-xs flex items-center gap-2 transition-all"
+              className="px-4 py-1.5 rounded-full bg-[#E6CA65] hover:bg-[#ebd57e] text-black font-semibold text-xs flex items-center gap-2 transition-all shadow-sm"
             >
               {isGeneratingAI ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Gerando...
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-black" /> Gerando...
                 </>
               ) : (
                 <>
-                  <Bot className="w-4 h-4" /> Gemini 2.0 IA
+                  <Bot className="w-3.5 h-3.5 text-black" /> Gemini 2.0 IA
                 </>
               )}
             </button>
           </div>
 
-          <div className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-2 text-xs">
-            <span className="text-xl">{reading.symbol}</span>
-            <span className="text-white font-medium">{reading.sign} ({reading.dates})</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] text-xs font-medium text-[#E6CA65]">
+            <span className="text-base">{reading.symbol}</span>
+            <span>{reading.sign} ({reading.dates})</span>
           </div>
         </div>
       </div>
 
       {/* Segmented Sign Selector */}
-      <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 bg-[#1c1c1e] p-2 rounded-2xl border border-white/10">
+      <div className="flex items-center p-1 rounded-full bg-white/[0.03] backdrop-blur-xl overflow-x-auto no-scrollbar gap-1">
         {signList.map((sign) => {
           const r = ZODIAC_READINGS[sign];
           const isSelected = selectedSign === sign;
@@ -106,14 +106,14 @@ export const DailyHoroscope: React.FC<DailyHoroscopeProps> = ({ settings, astroD
                 setSelectedSign(sign);
                 setAiReading(null);
               }}
-              className={`p-2 rounded-xl flex flex-col items-center justify-center transition-all ${
+              className={`px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs whitespace-nowrap transition-all ${
                 isSelected
-                  ? 'bg-white text-black font-semibold shadow-sm'
-                  : 'text-neutral-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-white/[0.12] text-white font-semibold shadow-sm'
+                  : 'text-neutral-400 hover:text-white'
               }`}
             >
-              <span className="text-xl">{r.symbol}</span>
-              <span className="text-[10px] mt-0.5">{sign}</span>
+              <span className="text-base">{r.symbol}</span>
+              <span>{sign}</span>
             </button>
           );
         })}
@@ -121,81 +121,85 @@ export const DailyHoroscope: React.FC<DailyHoroscopeProps> = ({ settings, astroD
 
       {/* AI Reading Container */}
       {aiReading && (
-        <div className="bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10 space-y-3 animate-fadeIn">
-          <div className="flex items-center justify-between text-white font-bold text-sm">
+        <div className="space-y-3 pb-6 border-b border-white/[0.06] animate-fadeIn">
+          <div className="flex items-center justify-between text-white font-medium text-sm">
             <span className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-white" /> Leitura Sintetizada para {selectedSign}
+              <Sparkles className="w-4 h-4 text-[#E6CA65]" /> Leitura Sintetizada para {selectedSign}
             </span>
-            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-neutral-400">
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-white/[0.04] text-neutral-400 font-mono">
               {engineType === 'gemini' ? 'Gemini IA' : 'Motor Interno'}
             </span>
           </div>
 
-          <div className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap bg-black/50 p-5 rounded-2xl border border-white/10">
+          <div className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-[#E6CA65]/40 py-1">
             {aiReading}
           </div>
         </div>
       )}
 
-      {/* Standard Reading Card */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 bg-[#1c1c1e] rounded-3xl p-6 sm:p-8 border border-white/10 space-y-5">
+      {/* Standard Reading Editorial Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Main Column */}
+        <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              Previsão Diária para {reading.sign}
+            <h2 className="text-xl font-light text-white flex items-center gap-2">
+              Previsão Diária para <strong className="font-semibold text-[#E6CA65]">{reading.sign}</strong>
             </h2>
 
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white font-medium">
-              <Star className="w-3.5 h-3.5 text-white fill-white" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] text-xs text-[#E6CA65] font-medium">
+              <Star className="w-3.5 h-3.5 text-[#E6CA65] fill-[#E6CA65]" />
               <span>{reading.energyScore}/10 Energia</span>
             </div>
           </div>
 
-          <p className="text-sm text-neutral-200 leading-relaxed bg-black/40 p-5 rounded-2xl border border-white/5">
-            "{reading.prediction}"
-          </p>
+          <div className="pl-4 border-l-2 border-[#E6CA65]/50 py-1">
+            <p className="text-base sm:text-lg font-light text-neutral-200 italic leading-relaxed">
+              "{reading.prediction}"
+            </p>
+          </div>
 
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-start gap-3 text-xs">
-            <Compass className="w-4 h-4 text-white shrink-0 mt-0.5" />
+          <div className="pt-2 flex items-start gap-3 text-xs sm:text-sm text-neutral-400">
+            <Compass className="w-4 h-4 text-[#E6CA65] shrink-0 mt-0.5" />
             <div>
               <div className="font-semibold text-white uppercase tracking-wider text-[11px]">
                 {t('dailyAdvice', lang)}
               </div>
-              <div className="text-neutral-300 mt-1">
+              <div className="text-neutral-300 mt-1 leading-relaxed">
                 {reading.dailyAdvice}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-3">
-          <div className="bg-[#1c1c1e] rounded-2xl p-4 border border-white/10 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-white/5 text-white border border-white/10">
-              <Palette className="w-5 h-5" />
+        {/* Stats Column - Clean Typographic Stats Row / Grid */}
+        <div className="lg:col-span-4 space-y-4 pt-4 lg:pt-0 lg:border-l lg:border-white/[0.06] lg:pl-8">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center text-[#E6CA65]">
+              <Palette className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[11px] text-neutral-400">{t('luckyColor', lang)}</div>
-              <div className="text-sm font-semibold text-white">{reading.luckyColor}</div>
+              <div className="text-[10px] text-neutral-400 uppercase tracking-wider">{t('luckyColor', lang)}</div>
+              <div className="text-sm font-medium text-white">{reading.luckyColor}</div>
             </div>
           </div>
 
-          <div className="bg-[#1c1c1e] rounded-2xl p-4 border border-white/10 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-white/5 text-white border border-white/10">
-              <Hash className="w-5 h-5" />
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center text-[#E6CA65]">
+              <Hash className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[11px] text-neutral-400">{t('luckyNumber', lang)}</div>
-              <div className="text-lg font-bold text-white">{reading.luckyNumber}</div>
+              <div className="text-[10px] text-neutral-400 uppercase tracking-wider">{t('luckyNumber', lang)}</div>
+              <div className="text-base font-semibold text-white font-mono">{reading.luckyNumber}</div>
             </div>
           </div>
 
-          <div className="bg-[#1c1c1e] rounded-2xl p-4 border border-white/10 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-white/5 text-white border border-white/10">
-              <Heart className="w-5 h-5" />
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/[0.04] flex items-center justify-center text-[#E6CA65]">
+              <Heart className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-[11px] text-neutral-400">{t('compatibility', lang)}</div>
-              <div className="text-sm font-semibold text-white">{reading.compatibility}</div>
+              <div className="text-[10px] text-neutral-400 uppercase tracking-wider">{t('compatibility', lang)}</div>
+              <div className="text-sm font-medium text-white">{reading.compatibility}</div>
             </div>
           </div>
         </div>

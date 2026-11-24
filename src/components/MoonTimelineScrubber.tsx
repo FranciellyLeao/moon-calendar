@@ -133,18 +133,18 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
   const scrubY = getY(activePosition.altitudeDeg);
 
   return (
-    <div className="glass-panel-moonly rounded-3xl p-6 sm:p-7 space-y-6 border border-white/10 relative overflow-hidden">
+    <div className="relative space-y-6 pt-2 pb-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-300">
             <Clock className="w-3.5 h-3.5 text-amber-300" />
             <span>Trajetória & Visibilidade 24h</span>
           </div>
-          <h3 className="text-lg sm:text-xl font-bold text-white mt-1">
+          <h3 className="text-lg sm:text-xl font-light text-white mt-1 tracking-tight">
             Linha do Tempo Lunar Contínua
           </h3>
-          <p className="text-xs text-neutral-300 mt-0.5">
+          <p className="text-xs text-neutral-400 mt-0.5">
             Arraste para visualizar altitude, azimute e visibilidade da Lua ao longo do dia em {settings.location.name}.
           </p>
         </div>
@@ -152,7 +152,7 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
         {/* Quick jump to Now */}
         <button
           onClick={() => setSelectedMinutes(currentMinutesFromMidnight)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 text-xs font-medium transition-all self-start sm:self-auto"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 hover:text-white text-xs font-medium transition-all self-start sm:self-auto"
         >
           <RotateCcw className="w-3 h-3 text-amber-300" />
           <span>Voltar para Agora ({new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
@@ -160,7 +160,7 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
       </div>
 
       {/* SVG Arc Trajectory */}
-      <div className="relative w-full overflow-hidden bg-black/40 rounded-2xl border border-white/5 p-2 sm:p-4">
+      <div className="relative w-full overflow-hidden rounded-2xl py-2 sm:py-3">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-32 sm:h-40 overflow-visible"
@@ -292,9 +292,9 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
       </div>
 
       {/* Real-time Astronomical Metrics at Scrubbed Time */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-3.5 border-y border-white/[0.06]">
         {/* Status */}
-        <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+        <div className="space-y-1">
           <div className="text-[11px] text-neutral-400 font-medium flex items-center gap-1.5">
             {activePosition.isVisible ? (
               <Eye className="w-3.5 h-3.5 text-emerald-400" />
@@ -303,26 +303,26 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
             )}
             <span>Condição</span>
           </div>
-          <div className={`text-xs sm:text-sm font-bold ${activePosition.isVisible ? 'text-emerald-300' : 'text-neutral-400'}`}>
+          <div className={`text-xs sm:text-sm font-semibold ${activePosition.isVisible ? 'text-emerald-300' : 'text-neutral-400'}`}>
             {activePosition.isVisible ? 'Visível no Céu' : 'Sob o Horizonte'}
           </div>
         </div>
 
         {/* Altitude */}
-        <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+        <div className="space-y-1">
           <div className="text-[11px] text-neutral-400 font-medium">Altitude</div>
-          <div className="text-xs sm:text-sm font-bold text-white font-mono">
+          <div className="text-xs sm:text-sm font-semibold text-white font-mono">
             {activePosition.altitudeDeg > 0 ? `+${activePosition.altitudeDeg.toFixed(1)}°` : `${activePosition.altitudeDeg.toFixed(1)}°`}
           </div>
         </div>
 
         {/* Azimuth & Compass */}
-        <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+        <div className="space-y-1">
           <div className="text-[11px] text-neutral-400 font-medium flex items-center gap-1">
-            <Compass className="w-3 h-3 text-amber-300" />
+            <Compass className="w-3.5 h-3.5 text-amber-300" />
             <span>Azimute</span>
           </div>
-          <div className="text-xs sm:text-sm font-bold text-white font-mono">
+          <div className="text-xs sm:text-sm font-semibold text-white font-mono">
             {activePosition.azimuthDeg.toFixed(0)}°
             <span className="text-[10px] text-amber-200/80 font-sans block truncate font-medium">
               {activePosition.cardinal}
@@ -331,9 +331,9 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
         </div>
 
         {/* Illumination & Distance */}
-        <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 space-y-1">
+        <div className="space-y-1">
           <div className="text-[11px] text-neutral-400 font-medium">Iluminação</div>
-          <div className="text-xs sm:text-sm font-bold text-white">
+          <div className="text-xs sm:text-sm font-semibold text-white">
             {activePosition.illumination}%
             <span className="text-[10px] text-neutral-400 font-mono block">
               {activePosition.distanceKm.toLocaleString()} km
@@ -344,7 +344,7 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
 
       {/* Key Milestones of the Day */}
       <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5 text-xs text-neutral-300">
-        <span className="text-[11px] text-neutral-500 font-semibold uppercase tracking-wider">
+        <span className="text-[11px] text-neutral-400 font-medium uppercase tracking-wider">
           Marcos de Hoje:
         </span>
         <button
@@ -352,16 +352,16 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
             const mins = parseTimeToMinutes(astroData.moonrise);
             if (mins !== null) setSelectedMinutes(mins);
           }}
-          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-neutral-200 transition-all font-mono"
+          className="px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 hover:text-white transition-all font-mono text-xs"
         >
-          Nascer: <strong className="text-white">{astroData.moonrise || '--:--'}</strong>
+          Nascer: <strong className="text-white font-semibold">{astroData.moonrise || '--:--'}</strong>
         </button>
 
         <button
           onClick={() => setSelectedMinutes(hourlyData.maxAltHour * 60)}
-          className="px-2.5 py-1 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/20 text-amber-200 transition-all font-mono"
+          className="px-3 py-1 rounded-full bg-amber-400/10 hover:bg-amber-400/20 text-amber-200 transition-all font-mono text-xs"
         >
-          Zênite (Pico): <strong className="text-amber-300">+{hourlyData.maxAlt.toFixed(1)}° ({hourlyData.maxAltHour}:00)</strong>
+          Zênite (Pico): <strong className="text-amber-300 font-semibold">+{hourlyData.maxAlt.toFixed(1)}° ({hourlyData.maxAltHour}:00)</strong>
         </button>
 
         <button
@@ -369,9 +369,9 @@ export const MoonTimelineScrubber: React.FC<MoonTimelineScrubberProps> = ({
             const mins = parseTimeToMinutes(astroData.moonset);
             if (mins !== null) setSelectedMinutes(mins);
           }}
-          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-neutral-200 transition-all font-mono"
+          className="px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-neutral-300 hover:text-white transition-all font-mono text-xs"
         >
-          Ocaso: <strong className="text-white">{astroData.moonset || '--:--'}</strong>
+          Ocaso: <strong className="text-white font-semibold">{astroData.moonset || '--:--'}</strong>
         </button>
       </div>
     </div>

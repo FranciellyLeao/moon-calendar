@@ -402,37 +402,37 @@ export const LunarOracle: React.FC<LunarOracleProps> = ({
   const TRIPLE_LABELS = ['Passado • Raiz & Aprendizado', 'Presente • Foco & Desafio', 'Futuro • Conselho & Potencial'];
 
   return (
-    <div className="glass-panel-moonly rounded-3xl p-6 sm:p-8 space-y-6 border border-white/10 relative overflow-hidden">
+    <div className="relative space-y-6 pt-2 pb-6">
       {/* Subtle background ambient light */}
-      <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
+      <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-amber-400/[0.04] blur-3xl pointer-events-none" />
 
       {/* Header with Spread Selector & Reshuffle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4 relative z-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.06] pb-4 relative z-10">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-300">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             <span>Oráculo & Tarô Lunar Diário</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
+          <h2 className="text-xl sm:text-2xl font-light text-white mt-1 tracking-tight">
             Conselho Cósmico das Cartas
           </h2>
-          <p className="text-xs text-neutral-300 mt-0.5">
-            Sintonizado com a Lua em <strong className="text-amber-200">{astroData.zodiacSign}</strong> e sua frequência atual.
+          <p className="text-xs text-neutral-400 mt-0.5">
+            Sintonizado com a Lua em <strong className="text-amber-200 font-medium">{astroData.zodiacSign}</strong> e sua frequência atual.
           </p>
         </div>
 
         {/* Controls */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Mode toggle */}
-          <div className="flex items-center p-1 rounded-xl bg-black/50 border border-white/10 text-xs font-medium">
+          <div className="flex items-center p-1 rounded-full bg-white/[0.04] text-xs font-medium gap-1">
             <button
               onClick={() => {
                 setSpreadMode('single');
                 handleDraw('single');
               }}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 rounded-full transition-all ${
                 spreadMode === 'single'
-                  ? 'bg-white text-black font-semibold shadow-sm'
+                  ? 'bg-white/[0.12] text-white font-semibold shadow-sm'
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
@@ -443,9 +443,9 @@ export const LunarOracle: React.FC<LunarOracleProps> = ({
                 setSpreadMode('triple');
                 handleDraw('triple');
               }}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3.5 py-1.5 rounded-full transition-all ${
                 spreadMode === 'triple'
-                  ? 'bg-white text-black font-semibold shadow-sm'
+                  ? 'bg-white/[0.12] text-white font-semibold shadow-sm'
                   : 'text-neutral-400 hover:text-white'
               }`}
             >
@@ -459,7 +459,7 @@ export const LunarOracle: React.FC<LunarOracleProps> = ({
             whileTap={{ scale: 0.97 }}
             onClick={() => handleDraw()}
             disabled={isShuffling}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-200 font-semibold text-xs transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/30 text-amber-200 font-medium text-xs transition-all shadow-sm"
           >
             <RotateCcw className={`w-3.5 h-3.5 text-amber-300 ${isShuffling ? 'animate-spin' : ''}`} />
             <span>Tirar Novamente</span>
@@ -564,11 +564,11 @@ export const LunarOracle: React.FC<LunarOracleProps> = ({
                           {card.essence}
                         </p>
 
-                        <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 space-y-1 text-[11px]">
-                          <span className="text-amber-300 font-bold block">
-                            Orientação Prática:
+                        <div className="pl-3 border-l-2 border-amber-400/40 space-y-0.5 text-[11px]">
+                          <span className="text-amber-300 font-semibold uppercase tracking-wider text-[10px] block">
+                            Orientação Prática
                           </span>
-                          <span className="text-neutral-300 block">
+                          <span className="text-neutral-300 block leading-relaxed">
                             {card.guidance}
                           </span>
                         </div>
